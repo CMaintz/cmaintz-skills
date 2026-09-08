@@ -1,0 +1,28 @@
+{
+  "name": "cmaintz",
+  "owner": {
+    "name": "CMaintz",
+    "url": "https://github.com/CMaintz"
+  },
+  "description": "Foundry — an engineering gate and the agent habits that keep it green.",
+  "plugins": [
+    {
+      "name": "foundry-skills",
+      "displayName": "Foundry skills",
+      "source": "./",
+      "description": "Pre-PR review and structural-smell habits built on the Foundry six-verb gate: one rule set enforced in-loop, pre-push and in CI.",
+      "category": "engineering",
+      "keywords": [
+        "ci",
+        "code-review",
+        "habits",
+        "hooks",
+        "quality-gate"
+      ],
+      "author": {
+        "name": "CMaintz",
+        "url": "https://github.com/CMaintz"
+      }
+    }
+  ]
+}
