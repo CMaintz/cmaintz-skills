@@ -45,7 +45,28 @@ This repo is deliberately thin, because most of the practice layer is already wr
 
 They are installed as plugins, not vendored, so upstream fixes flow automatically and the attribution stays where it belongs.
 
-Ivett's `learn` is the load-bearing one: it routes a session learning to *a deterministic hook first*, `CLAUDE.md` second, a new skill third. That ordering is this project's entire thesis expressed as a skill, and it's how borrowed habits gradually become your own.
+## Three reviewers, one stack
+
+Installing these plugins leaves three things called some flavour of "code review". They don't compete — they layer, most-specific first:
+
+| Reviewer | Role | Who runs it |
+|---|---|---|
+| a repo-local skill from **`build-project-review`** | encodes *this* project's maintainers' preferences | `ship`, if the repo has one |
+| **`mattpocock-skills:code-review`** | Standards + Spec, in parallel fresh sub-agents | `ship` step 4, by default |
+| built-in **`/code-review`** | fast on-demand bug + cleanup pass, with `--fix` | you, by hand |
+
+`ship` uses the top two (fresh-context review against the spec). The built-in stays your manual bug hunt. They namespace as `plugin:skill`, so nothing actually clashes — this is about which one does which job.
+
+## The flywheel: `learn`
+
+Ivett's `learn` is the load-bearing skill in this whole setup. It reflects on a session and routes each learning to the store that will actually *enforce* it, in priority order:
+
+1. **a deterministic hook** (habit-hooks / a check) — enforcement, not memory
+2. **`AGENTS.md` / `CLAUDE.md`** — standing context
+3. **a new skill** — a reusable procedure
+4. **auto-memory** — last resort
+
+That ordering *is* this project's thesis expressed as a skill: prefer the placement that makes a mistake impossible over the one that just reminds you not to make it. Run it (`/learn`, or "what did we learn?") before saving anything to memory — a lesson that could be a hook shouldn't decay into a note. It's how borrowed habits gradually become your own, and how a one-off fix in this session becomes a rule the next one can't skip.
 
 ## Licence
 
