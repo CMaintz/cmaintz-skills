@@ -45,17 +45,18 @@ This repo is deliberately thin, because most of the practice layer is already wr
 
 They are installed as plugins, not vendored, so upstream fixes flow automatically and the attribution stays where it belongs.
 
-## Three reviewers, one stack
+## Reviewing: one entry point
 
-Installing these plugins leaves three things called some flavour of "code review". They don't compete — they layer, most-specific first:
+Installing these plugins leaves several things called some flavour of "code review". Rather than juggle them, `cmaintz-skills:review` is the **single entry point** — it runs three fresh-context lenses itself and folds in the others:
 
-| Reviewer | Role | Who runs it |
+| Piece | Role | How `review` uses it |
 |---|---|---|
-| a repo-local skill from **`build-project-review`** | encodes *this* project's maintainers' preferences | `ship`, if the repo has one |
-| **`mattpocock-skills:code-review`** | Standards + Spec, in parallel fresh sub-agents | `ship` step 4, by default |
-| built-in **`/code-review`** | fast on-demand bug + cleanup pass, with `--fix` | you, by hand |
+| **`cmaintz-skills:review`** | the one you invoke: correctness + standards + spec, in parallel fresh sub-agents | — |
+| a repo-local skill from **`build-project-review`** | encodes *this* project's maintainers' preferences | loaded into the Standards lens if present |
+| **`mattpocock-skills:code-review`** | the Standards+Spec shape `review` is modelled on | reference; not called directly |
+| built-in **`/code-review`** | fast on-demand bug + cleanup pass, with `--fix` | stays your manual by-hand tool |
 
-`ship` uses the top two (fresh-context review against the spec). The built-in stays your manual bug hunt. They namespace as `plugin:skill`, so nothing actually clashes — this is about which one does which job.
+`ship` step 4 calls `review`. The built-in `/code-review` stays your manual bug hunt. Everything namespaces as `plugin:skill`, so nothing clashes.
 
 ## The flywheel: `learn`
 
