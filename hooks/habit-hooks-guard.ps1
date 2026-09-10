@@ -4,10 +4,15 @@
 # opted in by having a .habit-hooks/ directory. Silent and near-zero cost in
 # every other repo, so this is safe to install globally.
 #
-# Placement note: this is a Stop hook rather than PostToolUse because
-# habit-hooks takes ~25s on a mid-size repo — far too slow to fire after every
-# edit. It also matches habit-hooks' own guidance: "run it before considering
-# work complete."
+# Placement note: this is a Stop hook rather than PostToolUse because it fires
+# once, before work is declared complete (matching habit-hooks' own guidance),
+# rather than after every edit.
+#
+# Scope note: runs `--branch`, i.e. only files changed vs the branch base, not
+# the whole repo (`--all`). That is both the right scope for an in-loop check
+# (flag what you touched) and necessary on Windows, where passing every path in
+# a large repo to the detector blows the ~8191-char command-line limit. It is
+# also fast (a few seconds) since it scans a changeset, not hundreds of files.
 
 $ErrorActionPreference = 'SilentlyContinue'
 
@@ -28,7 +33,7 @@ if (-not (Test-Path -LiteralPath '.habit-hooks' -PathType Container)) { exit 0 }
 $hh = Get-Command habit-hooks -ErrorAction SilentlyContinue
 if (-not $hh) { exit 0 }
 
-$output = & $hh.Source 2>&1
+$output = & $hh.Source --branch 2>&1
 if ($LASTEXITCODE -eq 0) { exit 0 }
 
 # Exit code 2 blocks the stop and feeds stderr back to Claude as coaching.
