@@ -36,6 +36,32 @@ A `Stop` hook that runs [habit-hooks](https://github.com/habit-hooks/habit-hooks
 
 It is a `Stop` hook rather than `PostToolUse` deliberately: habit-hooks costs ~25s cold (~6s warm), far too slow to fire after every edit. It also matches habit-hooks' own guidance — *"run it before considering work complete."*
 
+### `hooks/auto-format.ps1`
+A `PostToolUse` hook (matches `Edit|Write|MultiEdit`) that formats the single file just written, so formatting is fixed **left of CI** — the gate's format check then almost never fails and the agent never burns a round-trip on a whitespace nit. It runs `prettier --write` on the one file (falling back to `eslint --fix`), sub-second.
+
+Unlike habit-hooks-guard this *is* a `PostToolUse` hook, and that's the point: a single-file `prettier` run is cheap enough to fire on every edit, whereas whole-project formatters aren't. It opts in **by tooling** — it only acts when the file's project has a local `prettier`/`eslint`, so it's a silent no-op elsewhere and safe to install globally. **Java/Kotlin are intentionally skipped**: Spotless/ktlint run through Gradle and cost seconds of JVM startup per edit, so those stay in the `fix` verb / gate / `/ship`, not here.
+
+Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` first):
+
+```json
+"hooks": {
+  "PostToolUse": [
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "powershell",
+          "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\Users\\<you>\\.claude\\hooks\\auto-format.ps1"],
+          "timeout": 30,
+          "statusMessage": "Formatting..."
+        }
+      ]
+    }
+  ]
+}
+```
+
 ## Standing on shoulders
 
 This repo is deliberately thin, because most of the practice layer is already written by people who did it better. Install these alongside it:
