@@ -8,8 +8,11 @@ The CI half lives in **[foundry](https://github.com/CMaintz/foundry)**. The seam
 
 ```
 /plugin marketplace add CMaintz/cmaintz-skills
-/plugin install foundry-skills@cmaintz
+/plugin install foundry@cmaintz
 ```
+
+Skills are then invoked namespaced by the plugin: `/foundry:ship`, `/foundry:review`,
+`/foundry:repo-align`, `/foundry:foundry-secret`.
 
 ## Why hooks and not documentation
 
