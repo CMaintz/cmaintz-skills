@@ -37,6 +37,26 @@ Test files are excluded from structural-smell scanning (`.habit-hooks/config.tom
 target tests for smell reduction; if a test is genuinely unreadable that's a
 separate readability task, not this campaign.
 
+## Big files and god classes don't fit one PR — decouple the milestone
+
+`hotspot-rec` will point you *straight at* god classes (high churn × high
+complexity is their definition), and whole-file snooze is all-or-nothing — so the
+worst files are exactly the ones you can't clean in a single small PR. Don't try.
+Split the two things the skill otherwise fuses:
+
+- **Improving the code stays incremental** — one extracted collaborator per PR (a
+  value object, a strategy, a sub-service). Each is behaviour-preserving, tests
+  green, and small enough to review.
+- **Shrinking the baseline is a milestone, not a per-PR step.** It happens only on
+  the *final* PR that clears the file's last smell. Until then the file rides in
+  `snooze.json` unchanged — that's fine: the baseline never grows and each PR still
+  makes the class better. Never hand-edit the baseline to "credit" partial progress;
+  it's all-or-nothing per file.
+
+So a god class is its own mini-campaign: N small extraction PRs, then one that
+zeroes it out and drops it from the baseline (via `bootstrap`). The one-small-PR
+rule below applies to each extraction step, not to "clear the whole file."
+
 ## The loop — one slice per PR
 
 1. **Pick** — `hotspot-rec`, take its one recommendation (or a bounded dir).
@@ -45,8 +65,14 @@ separate readability task, not this campaign.
    missing abstraction — a class, a value object, a strategy — don't split at
    line 200 mechanically or extract a 5-parameter helper). Aim to zero out the
    file so it can leave the baseline.
-4. **Shrink the baseline** — regenerate `snooze.json` so the cleaned file drops
-   off. Never grow it; `ruleset-guard` blocks that without the label anyway.
+4. **Shrink the baseline — don't hand-edit `snooze.json`.** It's tool-generated;
+   regenerate it with `habit-sensors --all | habit-snooze --prune` (drops files
+   that no longer have findings). This needs `--all`, which blows the Windows
+   command-line limit — so it runs on Linux via the `bootstrap` workflow, not your
+   machine. Flow: land the fix PR (which does *not* touch `snooze.json`), then run
+   `bootstrap` to open the baseline-shrink PR. Hand-removing a path only "works" if
+   the file is 100% clean — one residual smell and `Structural smells` CI re-reports
+   it. Never grow the baseline; `ruleset-guard` blocks that without the label anyway.
 5. **Verify** — `mise run <pkg>:gate` green from a clean tree; untouched tests
    pass identically.
 6. **Ship** — `/ship`. Keep formatting-only PRs (`style:`) separate from
