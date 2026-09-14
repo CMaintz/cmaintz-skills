@@ -65,6 +65,12 @@ Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` 
 ### `hooks/format-java-stop.ps1`
 A `Stop` hook that runs `./gradlew spotlessApply` once when a turn finishes, but only if the turn touched `.java` and the build actually uses Spotless. It's the Java counterpart to `auto-format.ps1` — **the placement differs because the cost does**: a per-edit `prettier` run is sub-second, but Gradle's JVM startup is seconds, so firing Spotless on every keystroke would dominate wall-clock. Once-per-turn is the right cadence for a JVM formatter, and Spotless's `ratchetFrom origin/main` scopes the rewrite to changed files so nothing untouched is reformatted. Same config as the CI Spotless check — just applied before the PR instead of at it. Register it as a second `Stop` hook alongside `habit-hooks-guard.ps1` (order-independent; format exits 0, the habit check may exit 2 to coach).
 
+### `hooks/typecheck-stop.ps1`
+A `Stop` hook that runs `mise run typecheck` once per turn — but only when the turn touched source and the repo defines the verb — and `exit 2`s with the errors as coaching if it fails. It catches **type errors a turn before `/ship` would**, closing the in-loop feedback gap habit-hooks-guard (smells only) leaves open. Heavier than the per-edit formatters (it's tsc / gradle compile / mypy over the project), so it's a deliberate opt-in for people who want the type check mirrored locally; skip it if the per-turn latency isn't worth it on a slow Gradle build.
+
+### `hooks/pre-push`
+A native **git** `pre-push` hook (POSIX sh, not a Claude hook) that runs `mise run gate` before a push and aborts on failure — so a plain `git push` by a human gets the same gate the agent's `/ship` enforces. No-op where there's no `mise.toml`. Install with `cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (or version it via `core.hooksPath`); bypass once with `git push --no-verify`.
+
 ## Standing on shoulders
 
 This repo is deliberately thin, because most of the practice layer is already written by people who did it better. Install these alongside it:

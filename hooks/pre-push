@@ -1,0 +1,20 @@
+#!/bin/sh
+# Foundry pre-push git hook — run the gate before code leaves the machine, so a
+# plain `git push` gets the same gate the agent's /ship does. Catches human pushes,
+# not just agent ones.
+#
+# Install (one of):
+#   cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+#   # or, to version it: git config core.hooksPath .githooks  (and put this there)
+#
+# Bypass once (e.g. pushing a WIP branch) with:  git push --no-verify
+#
+# No-op where there's nothing to gate, so it's safe to install globally.
+command -v mise >/dev/null 2>&1 || exit 0
+[ -f mise.toml ] || exit 0
+
+echo "foundry: running 'mise run gate' before push..."
+if ! mise run gate; then
+  echo "foundry: gate failed — push aborted. Fix it, or bypass once with 'git push --no-verify'." >&2
+  exit 1
+fi
