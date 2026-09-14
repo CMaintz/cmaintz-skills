@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Foundry — in-loop habit check (Stop hook). Portable sh. Runs habit-hooks when the
-# agent is about to finish, but only in repos that opted in with a .habit-hooks/
-# directory, so it's silent and near-zero cost elsewhere — safe to install globally.
-# Scope is --branch (the changeset), which is the right scope for an in-loop check.
+# agent is about to finish, in every package that opted in with a .habit-hooks/
+# directory — the repo root AND each immediate subdir, so a monorepo's backend/ and
+# frontend/ are both checked (not just the cwd). Silent where nothing opted in, so
+# it's safe to install globally. Scope is --branch (the changeset).
 set -u
 
 payload=$(cat)
@@ -16,12 +17,26 @@ if [ -n "$cwd" ]; then
   cd "$cwd" 2>/dev/null || true
 fi
 
-[ -d .habit-hooks ] || exit 0
 command -v habit-hooks >/dev/null 2>&1 || exit 0
 
-out=$(habit-hooks --branch 2>&1); rc=$?
-[ "$rc" -eq 0 ] && exit 0
+# Package dirs with a .habit-hooks/: the root, plus one level down (backend/, frontend/).
+dirs=""
+[ -d .habit-hooks ] && dirs="."
+for d in */; do [ -d "${d}.habit-hooks" ] && dirs="$dirs ${d%/}"; done
+[ -n "$dirs" ] || exit 0
 
-# Exit 2 blocks the stop and feeds stderr back to the agent as coaching.
-printf '%s\n' "$out" >&2
+fail=0; report=""
+for d in $dirs; do
+  out=$(cd "$d" && habit-hooks --branch 2>&1); rc=$?
+  if [ "$rc" -ne 0 ]; then
+    fail=1
+    report="${report}
+=== ${d} ===
+${out}"
+  fi
+done
+[ "$fail" -eq 0 ] && exit 0
+
+# Exit 2 blocks the stop and feeds the findings back to the agent as coaching.
+printf '%s\n' "$report" >&2
 exit 2

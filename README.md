@@ -43,7 +43,7 @@ A `PostToolUse` hook (matches `Edit|Write|MultiEdit`) that formats the single fi
 
 Unlike habit-hooks-guard this *is* a `PostToolUse` hook, and that's the point: a single-file `prettier` run is cheap enough to fire on every edit, whereas whole-project formatters aren't. It opts in **by tooling** — it only acts when the file's project has a local `prettier`/`eslint`, so it's a silent no-op elsewhere and safe to install globally. **Java/Kotlin aren't formatted here** — Gradle's JVM startup is too slow to fire per-edit — but they aren't skipped either: see `format-java-stop.sh` below, which formats them once per turn at the right cadence.
 
-Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` first). Use forward slashes in the path — git-bash's `bash` won't open a backslash path:
+Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` first). **On Windows, point `command` at git-bash's bash by full path** — a bare `"bash"` resolves to *WSL's* `System32\bash.exe`, which fails with `execvpe(/bin/bash)`. Use forward slashes in the script arg (git-bash won't open a backslash path):
 
 ```json
 "hooks": {
@@ -53,7 +53,7 @@ Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` 
       "hooks": [
         {
           "type": "command",
-          "command": "bash",
+          "command": "C:\\Program Files\\Git\\bin\\bash.exe",
           "args": ["C:/Users/<you>/.claude/hooks/auto-format.sh"],
           "timeout": 30,
           "statusMessage": "Formatting..."
