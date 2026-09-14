@@ -61,10 +61,15 @@ rule below applies to each extraction step, not to "clear the whole file."
 
 1. **Pick** — `hotspot-rec`, take its one recommendation (or a bounded dir).
 2. **Format** — `mise run <pkg>:fix` (auto-fix + Spotless/ESLint). Review the diff.
-3. **Clear smells** — run `habit-hooks`; fix the findings *properly* (find the
-   missing abstraction — a class, a value object, a strategy — don't split at
-   line 200 mechanically or extract a 5-parameter helper). Aim to zero out the
-   file so it can leave the baseline.
+3. **Clear smells** — run `habit-hooks`; fix the findings *properly*. The target
+   is **functions that do one thing** (single level of abstraction, one reason to
+   change — SRP): the `high-complexity` / `oversized-function` / `too-many-parameters`
+   smells are the machine-checkable shadows of a function doing *too many* things.
+   Fix by finding the missing abstraction (a class, a value object, a strategy, a
+   named pipeline step) — never by splitting at line 200 mechanically or extracting
+   a 5-parameter helper (if the helper needs five parameters, the seam is wrong).
+   Refactor toward cohesion, not away from a line count. See foundry's
+   `presets/code-standards.md`. Aim to zero out the file so it can leave the baseline.
 4. **Shrink the baseline — don't hand-edit `snooze.json`.** It's tool-generated;
    regenerate it with `habit-sensors --all | habit-snooze --prune` (drops files
    that no longer have findings). This needs `--all`, which blows the Windows
