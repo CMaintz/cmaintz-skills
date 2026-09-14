@@ -33,5 +33,5 @@ if (-not ($changed | Where-Object { $_ -match '\.(ts|tsx|js|jsx|java|kt|kts|cs|p
 
 $out = & $mise.Source run typecheck 2>&1
 if ($LASTEXITCODE -eq 0) { exit 0 }
-[Console]::Error.WriteLine("Type check failed — resolve before finishing:`n" + ($out | Out-String))
+[Console]::Error.WriteLine("Type check failed - resolve before finishing:`n" + ($out | Out-String))
 exit 2
