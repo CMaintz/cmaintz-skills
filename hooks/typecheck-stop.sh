@@ -20,6 +20,11 @@ command -v mise >/dev/null 2>&1 || exit 0
 # Exact top-level `typecheck` task (first column of `mise tasks ls`), not a substring.
 mise tasks ls 2>/dev/null | awk '{print $1}' | grep -qx 'typecheck' || exit 0
 
+# Gradle typecheck is a JVM compile — too slow to run every turn. Skip in-loop for
+# Gradle projects and let /ship + CI cover it; the hook stays worthwhile for fast
+# toolchains (tsc, mypy). Without this, a monorepo runs the full compile at every Stop.
+[ -f ./gradlew ] && exit 0
+
 changed=$( { git diff --name-only HEAD 2>/dev/null; \
              git ls-files --others --exclude-standard 2>/dev/null; \
              mb=$(git merge-base HEAD origin/main 2>/dev/null); \
