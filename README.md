@@ -73,6 +73,9 @@ A `Stop` hook that runs `mise run typecheck` once per turn — but only when the
 ### `hooks/pre-push`
 A native **git** `pre-push` hook (POSIX sh, not a Claude hook) that runs `mise run gate` before a push and aborts on failure — so a plain `git push` by a human gets the same gate the agent's `/ship` enforces. No-op where there's no `mise.toml`. Install with `cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (or version it via `core.hooksPath`); bypass once with `git push --no-verify`.
 
+### `hooks/guard-generated-files.sh`
+A `PreToolUse` hook (matches `Edit|Write|MultiEdit`) that **hard-blocks** an agent from hand-editing tool-generated baselines — `snooze.json` and `eslint-suppressions.json` — with `exit 2` and a message pointing at the real path (regenerate via bootstrap `habit-snooze --prune` / `mise run fix`). This is *enforcement over recall*: the repo-align skill *says* not to hand-edit these, but a skill is advisory and decays with context; a PreToolUse block is involuntary. Fires only on the agent's own edits — CI/bootstrap regenerate these outside the agent's tools.
+
 ## Standing on shoulders
 
 This repo is deliberately thin, because most of the practice layer is already written by people who did it better. Install these alongside it:
