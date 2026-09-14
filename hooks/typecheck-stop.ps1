@@ -20,8 +20,12 @@ if ($payload -and $payload.cwd) { Set-Location -LiteralPath $payload.cwd }
 $mise = Get-Command mise -ErrorAction SilentlyContinue
 if (-not $mise) { exit 0 }
 if (-not (Test-Path -LiteralPath 'mise.toml')) { exit 0 }
-# Only if the repo actually defines the verb (don't coach on a missing task).
-if ((& $mise.Source tasks 2>$null | Out-String) -notmatch 'typecheck') { exit 0 }
+# Only if the repo defines a TOP-LEVEL `typecheck` task. Monorepos namespace their
+# verbs (backend:typecheck, frontend:typecheck) with no bare `typecheck`, so the
+# hook cleanly no-ops there instead of running a task that doesn't exist. Match the
+# task NAME (first column) exactly, not a substring.
+$names = (& $mise.Source tasks ls 2>$null) | ForEach-Object { ($_.TrimStart() -split '\s+')[0] }
+if ($names -notcontains 'typecheck') { exit 0 }
 
 # Only when the turn touched code — skip docs-only turns.
 $changed = @()
@@ -32,6 +36,10 @@ if ($mb) { $changed += & git diff --name-only $mb HEAD 2>$null }
 if (-not ($changed | Where-Object { $_ -match '\.(ts|tsx|js|jsx|java|kt|kts|cs|py|php)$' })) { exit 0 }
 
 $out = & $mise.Source run typecheck 2>&1
+$txt = ($out | Out-String)
 if ($LASTEXITCODE -eq 0) { exit 0 }
-[Console]::Error.WriteLine("Type check failed - resolve before finishing:`n" + ($out | Out-String))
+# Never block on an infrastructure failure (missing task, a toolchain that can't
+# run in this env) - only on a genuine type error.
+if ($txt -match 'No task|is not recognized|command not found|No such file|cannot be loaded') { exit 0 }
+[Console]::Error.WriteLine("Type check failed - resolve before finishing:`n" + $txt)
 exit 2
