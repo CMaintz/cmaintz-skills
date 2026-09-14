@@ -31,17 +31,19 @@ A habit you have to *remember* is not a habit. Prose in `CLAUDE.md` is advisory 
 ### `ship`
 Pre-PR review, run locally. Auto-fix → habit-hooks coaching → **green gate** → fresh-context review against the linked issue → conventional commit → PR. Moves review left of the PR entirely, which is also what keeps CI free of API keys.
 
-### `hooks/habit-hooks-guard.ps1`
+> **The hooks are portable `sh`** (invoked via `bash`), so they run on Linux, macOS and Windows git-bash alike — no PowerShell, and none of its encoding/quoting quirks.
+
+### `hooks/habit-hooks-guard.sh`
 A `Stop` hook that runs [habit-hooks](https://github.com/habit-hooks/habit-hooks) before an agent declares work done — but only in repos that opted in with a `.habit-hooks/` directory, so it is silent everywhere else and safe to install globally.
 
 It is a `Stop` hook rather than `PostToolUse` deliberately: habit-hooks costs ~25s cold (~6s warm), far too slow to fire after every edit. It also matches habit-hooks' own guidance — *"run it before considering work complete."*
 
-### `hooks/auto-format.ps1`
+### `hooks/auto-format.sh`
 A `PostToolUse` hook (matches `Edit|Write|MultiEdit`) that formats the single file just written, so formatting is fixed **left of CI** — the gate's format check then almost never fails and the agent never burns a round-trip on a whitespace nit. It runs `prettier --write` on the one file (falling back to `eslint --fix`), sub-second.
 
-Unlike habit-hooks-guard this *is* a `PostToolUse` hook, and that's the point: a single-file `prettier` run is cheap enough to fire on every edit, whereas whole-project formatters aren't. It opts in **by tooling** — it only acts when the file's project has a local `prettier`/`eslint`, so it's a silent no-op elsewhere and safe to install globally. **Java/Kotlin aren't formatted here** — Gradle's JVM startup is too slow to fire per-edit — but they aren't skipped either: see `format-java-stop.ps1` below, which formats them once per turn at the right cadence.
+Unlike habit-hooks-guard this *is* a `PostToolUse` hook, and that's the point: a single-file `prettier` run is cheap enough to fire on every edit, whereas whole-project formatters aren't. It opts in **by tooling** — it only acts when the file's project has a local `prettier`/`eslint`, so it's a silent no-op elsewhere and safe to install globally. **Java/Kotlin aren't formatted here** — Gradle's JVM startup is too slow to fire per-edit — but they aren't skipped either: see `format-java-stop.sh` below, which formats them once per turn at the right cadence.
 
-Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` first):
+Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` first). Use forward slashes in the path — git-bash's `bash` won't open a backslash path:
 
 ```json
 "hooks": {
@@ -51,8 +53,8 @@ Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` 
       "hooks": [
         {
           "type": "command",
-          "command": "powershell",
-          "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\Users\\<you>\\.claude\\hooks\\auto-format.ps1"],
+          "command": "bash",
+          "args": ["C:/Users/<you>/.claude/hooks/auto-format.sh"],
           "timeout": 30,
           "statusMessage": "Formatting..."
         }
@@ -62,11 +64,11 @@ Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` 
 }
 ```
 
-### `hooks/format-java-stop.ps1`
-A `Stop` hook that runs `./gradlew spotlessApply` once when a turn finishes, but only if the turn touched `.java` and the build actually uses Spotless. It's the Java counterpart to `auto-format.ps1` — **the placement differs because the cost does**: a per-edit `prettier` run is sub-second, but Gradle's JVM startup is seconds, so firing Spotless on every keystroke would dominate wall-clock. Once-per-turn is the right cadence for a JVM formatter, and Spotless's `ratchetFrom origin/main` scopes the rewrite to changed files so nothing untouched is reformatted. Same config as the CI Spotless check — just applied before the PR instead of at it. Register it as a second `Stop` hook alongside `habit-hooks-guard.ps1` (order-independent; format exits 0, the habit check may exit 2 to coach).
+### `hooks/format-java-stop.sh`
+A `Stop` hook that runs `./gradlew spotlessApply` once when a turn finishes, but only if the turn touched `.java` and the build actually uses Spotless. It's the Java counterpart to `auto-format.sh` — **the placement differs because the cost does**: a per-edit `prettier` run is sub-second, but Gradle's JVM startup is seconds, so firing Spotless on every keystroke would dominate wall-clock. Once-per-turn is the right cadence for a JVM formatter, and Spotless's `ratchetFrom origin/main` scopes the rewrite to changed files so nothing untouched is reformatted. Same config as the CI Spotless check — just applied before the PR instead of at it. Register it as a second `Stop` hook alongside `habit-hooks-guard.sh` (order-independent; format exits 0, the habit check may exit 2 to coach).
 
-### `hooks/typecheck-stop.ps1`
-A `Stop` hook that runs `mise run typecheck` once per turn — but only when the turn touched source and the repo defines the verb — and `exit 2`s with the errors as coaching if it fails. It catches **type errors a turn before `/ship` would**, closing the in-loop feedback gap habit-hooks-guard (smells only) leaves open. Heavier than the per-edit formatters (it's tsc / gradle compile / mypy over the project), so it's a deliberate opt-in for people who want the type check mirrored locally; skip it if the per-turn latency isn't worth it on a slow Gradle build.
+### `hooks/typecheck-stop.sh`
+A `Stop` hook that runs `mise run typecheck` once per turn — but only when the turn touched source and the repo defines an **exact top-level** `typecheck` task (monorepos namespace theirs, so it cleanly no-ops there) — and `exit 2`s with the errors as coaching if it fails; infrastructure failures never block. It catches **type errors a turn before `/ship` would**, closing the in-loop feedback gap habit-hooks-guard (smells only) leaves open. Heavier than the per-edit formatters (it's tsc / gradle compile / mypy over the project), so it's a deliberate opt-in for people who want the type check mirrored locally; skip it if the per-turn latency isn't worth it on a slow Gradle build.
 
 ### `hooks/pre-push`
 A native **git** `pre-push` hook (POSIX sh, not a Claude hook) that runs `mise run gate` before a push and aborts on failure — so a plain `git push` by a human gets the same gate the agent's `/ship` enforces. No-op where there's no `mise.toml`. Install with `cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (or version it via `core.hooksPath`); bypass once with `git push --no-verify`.
