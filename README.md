@@ -39,7 +39,7 @@ It is a `Stop` hook rather than `PostToolUse` deliberately: habit-hooks costs ~2
 ### `hooks/auto-format.ps1`
 A `PostToolUse` hook (matches `Edit|Write|MultiEdit`) that formats the single file just written, so formatting is fixed **left of CI** — the gate's format check then almost never fails and the agent never burns a round-trip on a whitespace nit. It runs `prettier --write` on the one file (falling back to `eslint --fix`), sub-second.
 
-Unlike habit-hooks-guard this *is* a `PostToolUse` hook, and that's the point: a single-file `prettier` run is cheap enough to fire on every edit, whereas whole-project formatters aren't. It opts in **by tooling** — it only acts when the file's project has a local `prettier`/`eslint`, so it's a silent no-op elsewhere and safe to install globally. **Java/Kotlin are intentionally skipped**: Spotless/ktlint run through Gradle and cost seconds of JVM startup per edit, so those stay in the `fix` verb / gate / `/ship`, not here.
+Unlike habit-hooks-guard this *is* a `PostToolUse` hook, and that's the point: a single-file `prettier` run is cheap enough to fire on every edit, whereas whole-project formatters aren't. It opts in **by tooling** — it only acts when the file's project has a local `prettier`/`eslint`, so it's a silent no-op elsewhere and safe to install globally. **Java/Kotlin aren't formatted here** — Gradle's JVM startup is too slow to fire per-edit — but they aren't skipped either: see `format-java-stop.ps1` below, which formats them once per turn at the right cadence.
 
 Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` first):
 
@@ -61,6 +61,9 @@ Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` 
   ]
 }
 ```
+
+### `hooks/format-java-stop.ps1`
+A `Stop` hook that runs `./gradlew spotlessApply` once when a turn finishes, but only if the turn touched `.java` and the build actually uses Spotless. It's the Java counterpart to `auto-format.ps1` — **the placement differs because the cost does**: a per-edit `prettier` run is sub-second, but Gradle's JVM startup is seconds, so firing Spotless on every keystroke would dominate wall-clock. Once-per-turn is the right cadence for a JVM formatter, and Spotless's `ratchetFrom origin/main` scopes the rewrite to changed files so nothing untouched is reformatted. Same config as the CI Spotless check — just applied before the PR instead of at it. Register it as a second `Stop` hook alongside `habit-hooks-guard.ps1` (order-independent; format exits 0, the habit check may exit 2 to coach).
 
 ## Standing on shoulders
 
