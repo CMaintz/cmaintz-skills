@@ -25,13 +25,19 @@ for d in "$HOME/.local/bin" "$HOME"/.local/opt/pmd-bin-*/bin; do
 done
 export PATH
 
-command -v habit-hooks >/dev/null 2>&1 || exit 0
-
 # Package dirs with a .habit-hooks/: the root, plus one level down (backend/, frontend/).
 dirs=""
 [ -d .habit-hooks ] && dirs="."
 for d in */; do [ -d "${d}.habit-hooks" ] && dirs="$dirs ${d%/}"; done
-[ -n "$dirs" ] || exit 0
+[ -n "$dirs" ] || exit 0   # nothing opted in here — silent, safe to install globally
+
+# A repo opted in (has .habit-hooks/) but the tool isn't installed: DON'T fail green
+# silently — that's the exact trap this system exists to avoid. Warn loudly (non-
+# blocking) with how to fix, then allow the stop; we can't run the check from here.
+if ! command -v habit-hooks >/dev/null 2>&1; then
+  printf '%s\n' "habit-hooks-guard: WARNING — this repo has .habit-hooks/ but 'habit-hooks' is not on PATH, so the in-loop structural-smell check did NOT run (CI still enforces it). Install it so local mirrors CI: pip install --user habit-hooks <lang-plugin> (+ standalone PMD for Java), or add its bin dir to PATH." >&2
+  exit 0
+fi
 
 fail=0; report=""
 for d in $dirs; do
