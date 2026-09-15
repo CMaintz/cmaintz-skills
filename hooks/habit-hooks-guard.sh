@@ -46,5 +46,26 @@ done
 [ "$fail" -eq 0 ] && exit 0
 
 # Exit 2 blocks the stop and feeds the findings back to the agent as coaching.
-printf '%s\n' "$report" >&2
+# habit-hooks names the smell + file:line; append a concrete "fix toward" legend so
+# the agent acts on it (mirrors the CI step-summary explainer) instead of guessing.
+{
+  printf '%s\n' "$report"
+  cat <<'LEGEND'
+
+── how to act on these smells ──
+Each smell is a shadow of code doing more than one thing. Fix toward the missing
+abstraction (a value object, a strategy, a named step) — never by splitting to a
+line count, and never with a change designed only to appease the tool.
+  oversized-function   too long to hold one idea       -> extract a named step / collaborator
+  oversized-file       too many responsibilities        -> split by concern into cohesive units
+  high-complexity      too many branches = too many     -> polymorphism/strategy; lift guard clauses; early returns
+                       decisions in one place
+  too-many-parameters  juggles too many collaborators   -> a parameter object, or split the responsibility
+  deep-nesting         a nested block wants a name       -> extract it; use early returns
+  duplication          same logic in two places          -> extract one shared function
+  dead-code            nothing references it             -> delete it
+Clearing a smell is necessary, not sufficient — "is this one thing?" is still your
+call. Fix it (or, if it's genuinely warranted, say why) before finishing.
+LEGEND
+} >&2
 exit 2
