@@ -10,12 +10,50 @@ PR per slice** — until it is consistently formatted and free of unjustified
 structural smells. Behaviour-preserving only (format + refactor, never a feature
 change); every test stays green.
 
+## Multi-session coordination — one shared report, claimed slices
+
+Several sessions run this campaign against the same working copy at once. The
+hotspot analysis is **expensive** (git-history forensics + deep code reading), so
+don't let each session regenerate it, and don't let two sessions grind the same
+file. Coordinate through two scratch files under `.foundry/` (gitignored — session
+state, never committed; add `.foundry/` to `.gitignore` if it isn't there):
+
+- `.foundry/hotspots.html` — the shared rendered `hotspot-rec` report.
+- `.foundry/align-claims.md` — the claims ledger (a markdown table).
+
+Your session key is **your branch name** (you cut your own branch off `origin/main`
+— see foundry's `collaboration.md`). The protocol, every time you start a slice:
+
+1. **Read the ledger.** Open `.foundry/align-claims.md` if it exists — it shows
+   which slices other sessions have claimed and their status.
+2. **Reuse a fresh report; regenerate only a stale one.** If `.foundry/hotspots.html`
+   exists and is **< 1 hour old** (`find .foundry/hotspots.html -mmin -60 -print`
+   prints it), use it **as-is** — the ranking barely moves in an hour and the
+   analysis isn't worth re-running. Otherwise (missing or ≥ 1h) regenerate it with
+   `hotspot-rec` writing to `.foundry/hotspots.html`, and **preserve** any
+   `in_progress` rows already in the ledger.
+3. **Claim before you cut.** Take the top recommendation **not already claimed
+   `in_progress`**, and append your row to the ledger — this is your lock:
+
+   ```
+   | Slice / target | Files or dir | Claimed by (branch) | Status | Since |
+   |---|---|---|---|---|
+   | DocumentGenerator god class | backend/.../DocumentGenerator.java | refactor/docgen-strategy | in_progress | 2026-09-15 |
+   ```
+4. **Release when done.** When your slice ships, set your row's Status to `done`.
+5. **Tidy up only if you're last out.** After marking `done`: if **no** row is
+   still `in_progress`, the report is fully consumed — delete `.foundry/hotspots.html`
+   and clear the ledger so the next session starts from a fresh analysis. If **any**
+   row is still `in_progress`, leave both files alone — another session is mid-slice
+   and relying on them.
+
 ## Pick the target — don't grind at random
 
 Run **`hotspot-rec`** (Ivett's skill) between slices and take its single
 recommendation: it ranks files by churn × complexity × temporal coupling, so you
 fix where maintenance cost actually lives, not wherever you happen to look. If
-`hotspot-rec` isn't available, pick one bounded directory/module.
+`hotspot-rec` isn't available, pick one bounded directory/module. **Respect the
+coordination protocol above** — reuse a < 1h-old report and claim your slice first.
 
 ## The snooze baseline is WHOLE-FILE granular
 
@@ -59,7 +97,10 @@ rule below applies to each extraction step, not to "clear the whole file."
 
 ## The loop — one slice per PR
 
-1. **Pick** — `hotspot-rec`, take its one recommendation (or a bounded dir).
+1. **Pick** — reuse-or-regen the shared report and **claim your slice** (see
+   *Multi-session coordination*); take `hotspot-rec`'s one unclaimed recommendation
+   (or a bounded dir). For a god class, fan out **sub-agents** to read the candidate
+   collaborators in parallel and report back the seam — don't investigate serially.
 2. **Format** — `mise run <pkg>:fix` (auto-fix + Spotless/ESLint). Review the diff.
 3. **Clear smells** — run `habit-hooks`; fix the findings *properly*. The target
    is **functions that do one thing** (single level of abstraction, one reason to
