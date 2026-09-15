@@ -17,6 +17,14 @@ if [ -n "$cwd" ]; then
   cd "$cwd" 2>/dev/null || true
 fi
 
+# Make locally-installed tools discoverable — a hook's PATH often lacks these:
+# habit-hooks (uv/pip user install) and the standalone PMD the Java sensor needs.
+# We RUN the check locally rather than skip it; the whole point is CI mirrored here.
+for d in "$HOME/.local/bin" "$HOME"/.local/opt/pmd-bin-*/bin; do
+  [ -d "$d" ] && case ":$PATH:" in *":$d:"*) ;; *) PATH="$d:$PATH" ;; esac
+done
+export PATH
+
 command -v habit-hooks >/dev/null 2>&1 || exit 0
 
 # Package dirs with a .habit-hooks/: the root, plus one level down (backend/, frontend/).
