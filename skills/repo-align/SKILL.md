@@ -121,9 +121,37 @@ rule below applies to each extraction step, not to "clear the whole file."
    it. Never grow the baseline; `ruleset-guard` blocks that without the label anyway.
 5. **Verify** — `mise run <pkg>:gate` green from a clean tree; untouched tests
    pass identically.
-6. **Ship** — `/ship`. Keep formatting-only PRs (`style:`) separate from
+6. **Adversarially review — a *fresh* sub-agent tries to refute the fix.** The
+   failure mode here is a *lazy fix* that clears the smell without improving the
+   code. Spawn a sub-agent whose job is to **reject**, checking: is this a genuine
+   cohesion improvement, or a threshold-dodge (a mechanical split, a helper with 5+
+   parameters, logic shuffled into a new file to duck a line count)? Was a baseline
+   grown or a check weakened (`ruleset-guard` territory)? Did behaviour change (a
+   test's expectations moved)? If it can't defend the slice as *genuinely one
+   thing*, loop back to step 3 — don't ship. The gate proves the code compiles and
+   passes; this proves it's actually *better*.
+7. **Ship** — `/ship`. Keep formatting-only PRs (`style:`) separate from
    refactor PRs (`refactor:`). Small — a reviewer should hold the whole diff in
    their head.
+
+## Run until acceptable — don't stop after one slice
+
+repo-align is a *campaign*, not a single PR. Repeat the loop — pick → fix → verify
+→ review → ship → prune — until one of these is true:
+
+- **Baseline clear** — `snooze.json` is empty/gone for the package(s) you're
+  aligning and `mise run <pkg>:gate` is green from a clean tree. That's *done*.
+- **No safe slice left** — every remaining entry is a god class mid-campaign whose
+  seam needs a human call. Surface the shortlist; don't force a bad seam.
+- **A guardrail trips** — a fix can't be made behaviour-preserving, or the
+  adversarial review keeps rejecting the same slice. Stop and surface it; never
+  lower the bar to make progress.
+
+The loop condition is **deterministic, never the model's say-so**: a slice is done
+only when the gate is green *and* its file drops from the baseline on prune. Keep
+the main thread as the orchestrator — fan out analyser sub-agents (step 1) and the
+refuting reviewer (step 6); it decides and integrates. That division is what keeps
+a long autonomous run from drifting into lazy, self-approved fixes.
 
 ## Close the loop — `learn`
 
