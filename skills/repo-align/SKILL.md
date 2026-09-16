@@ -134,15 +134,20 @@ rule below applies to each extraction step, not to "clear the whole file."
    refactor PRs (`refactor:`). Small — a reviewer should hold the whole diff in
    their head.
 
-## Run until acceptable — don't stop after one slice
+## Loop a bounded target to done — not the whole baseline
 
-repo-align is a *campaign*, not a single PR. Repeat the loop — pick → fix → verify
-→ review → ship → prune — until one of these is true:
+Zeroing the *entire* baseline in one run is a never-ending grind and not the goal.
+Instead, **pick a bounded target up front** — one file, one module, or a small set
+of related slices (a "surface") — and loop it to completion:
 
-- **Baseline clear** — `snooze.json` is empty/gone for the package(s) you're
-  aligning and `mise run <pkg>:gate` is green from a clean tree. That's *done*.
-- **No safe slice left** — every remaining entry is a god class mid-campaign whose
-  seam needs a human call. Surface the shortlist; don't force a bad seam.
+Repeat the loop — pick → fix → verify → review → ship → prune — until one of:
+
+- **Target clean** — every file in the chosen target has dropped from `snooze.json`
+  and `mise run <pkg>:gate` is green from a clean tree. That target is *done*; stop
+  there and let the human decide whether to start another (don't roll straight into
+  the rest of the repo).
+- **No safe slice left in the target** — what remains is a god class whose seam
+  needs a human call. Surface it; don't force a bad seam.
 - **A guardrail trips** — a fix can't be made behaviour-preserving, or the
   adversarial review keeps rejecting the same slice. Stop and surface it; never
   lower the bar to make progress.
@@ -151,7 +156,8 @@ The loop condition is **deterministic, never the model's say-so**: a slice is do
 only when the gate is green *and* its file drops from the baseline on prune. Keep
 the main thread as the orchestrator — fan out analyser sub-agents (step 1) and the
 refuting reviewer (step 6); it decides and integrates. That division is what keeps
-a long autonomous run from drifting into lazy, self-approved fixes.
+a long run from drifting into lazy, self-approved fixes. Scoping to a bounded target
+keeps each run reviewable and gives a clear finish line.
 
 ## Close the loop — `learn`
 
