@@ -12,41 +12,35 @@ change); every test stays green.
 
 ## Multi-session coordination — claim a target as a GitHub ticket
 
-Concurrent align sessions run in **separate worktrees** (each cuts its own branch
-off `origin/main` — foundry's `collaboration.md`), so anything under `.foundry/` is
-**per-worktree and invisible to the others**: a local ledger *or a lock file*
-cannot coordinate them. The one substrate every session shares is the **GitHub
-repo**, so the claim lives there — the same atomic ticket protocol the `/feature`
-driver uses (foundry `presets/ticket-schema.md`; create the `align` / `agent:ready`
-/ `agent:working` / `agent:blocked` labels once per repo).
+Sessions work in separate worktrees, so coordinate through the one thing they share:
+the **GitHub repo**. Claim the **target** you're about to align as an issue — using
+the same protocol as `/feature` (foundry `presets/ticket-schema.md`). A target is one
+file or module; you clear it in one or more **slices** (one reviewable PR each, per
+the loop below). Requires the `align` / `agent:ready` / `agent:working` /
+`agent:blocked` labels in the repo.
 
-The claimed unit is a **bounded target** — one file or module (see *Loop a bounded
-target to done*), one issue labelled `align`. Before touching code:
+Before touching code:
 
-1. **Read the report.** Run `hotspot-rec` in your worktree (regenerate freely — it's
-   read-only; not sharing it costs a re-run, never correctness).
-2. **Claim an existing ticket, atomically.** `gh issue list --label align --state open`.
-   Take the highest-ranked hotspot whose ticket is **`agent:ready`** and claim it:
-   `gh issue edit <n> --add-label agent:working --remove-label agent:ready --add-assignee @me`.
-   Then **re-read the issue and confirm you hold it** — if it's already `agent:working`
-   under someone else, you lost the race: skip it and take the next. Never touch a
-   target already `agent:working`.
-3. **No ticket for your target? Create then confirm.** `gh issue create --label
-   "align,agent:working" --assignee @me --title "align: <path>"`, body: acceptance =
-   "`mise run <pkg>:gate` green from a clean tree **and** `<path>` drops from
-   `snooze.json` on prune"; scope = "behaviour-preserving, this target only". Then
-   **re-list** `--label align`: if two open tickets now name the same target (a
-   create race), the **lower issue number wins** — close yours as a duplicate and
-   pick another target.
-4. **WIP = 1** per session. A target `agent:working` with no branch/PR for 30 min
-   resets to `agent:ready` (ticket-schema's stale recovery). On a genuine block,
-   post the reason to the issue thread, then label `agent:blocked` — the thread
-   outlives the session; an in-context explanation dies with it.
+1. **Pick a target** from `hotspot-rec` (run it in your worktree).
+2. **Claim it atomically.** Prefer an open `align` issue for that target that is
+   `agent:ready`:
+   `gh issue edit <n> --add-label agent:working --remove-label agent:ready --add-assignee @me`,
+   then **re-read the issue and confirm you hold it**. If it's already `agent:working`,
+   another session has it — pick a different target.
+3. **No issue for the target yet? Create then confirm.** `gh issue create --label
+   "align,agent:working" --assignee @me --title "align: <path>"` (body: acceptance =
+   gate green from a clean tree **and** `<path>` drops from `snooze.json` on prune;
+   scope = behaviour-preserving, this target only). Re-list `--label align`; if two
+   now name the same target, the **lower issue number wins** — close the dup, pick
+   another.
+4. **WIP = 1.** Hold one target at a time. A target `agent:working` with no branch or
+   PR for 30 min is stale — reset it to `agent:ready`. Blocked? Post why to the issue
+   thread, then label `agent:blocked`.
 
-`/ship` links each slice's PR to the issue; the target is done when it's clean and
-the issue closes. **No GitHub remote?** Run align sessions **one at a time** — the
-local-md ticket fallback isn't shared across worktrees either, so real concurrency
-needs the GitHub transport.
+`/ship` links each slice's PR to the issue — `Refs #<n>` while the target still has
+findings, `Closes #<n>` on the slice that clears the last one. The issue closes **when
+that PR merges**; never close it by hand. You hold the target across its slices until
+its final PR lands.
 
 ## Pick the target — don't grind at random
 
@@ -144,9 +138,10 @@ of related slices (a "surface") — and loop it to completion:
 Repeat the loop — pick → fix → verify → review → ship → prune — until one of:
 
 - **Target clean** — every file in the chosen target has dropped from `snooze.json`
-  and `mise run <pkg>:gate` is green from a clean tree. That target is *done*: close
-  its `align` issue and stop there; let the human decide whether to start another
-  (don't roll straight into the rest of the repo).
+  and `mise run <pkg>:gate` is green from a clean tree. That target is *done*: its
+  final slice's PR carries `Closes #<n>`, so the issue closes when that PR merges.
+  Stop there; let the human decide whether to start another (don't roll straight into
+  the rest of the repo).
 - **No safe slice left in the target** — what remains is a god class whose seam
   needs a human call. Surface it; don't force a bad seam.
 - **A guardrail trips** — a fix can't be made behaviour-preserving, or the
