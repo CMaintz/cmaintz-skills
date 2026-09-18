@@ -123,7 +123,8 @@ rule below applies to each extraction step, not to "clear the whole file."
    collaborators in parallel and report back the seam — don't investigate serially.
 2. **Format** — `mise run <pkg>:fix` (auto-fix + Spotless/ESLint). Review the diff.
 3. **Clear smells** — run `habit-hooks`; fix the findings *properly*. The goal is
-   **cohesion** (each function doing one thing), not a smaller number.
+   **cohesion** — each function doing one thing (SRP; lean on SOLID where it's
+   rational, not dogmatically) — not a smaller number.
    `high-complexity` / `oversized-function` / `too-many-parameters` are *signals* it's
    doing too much — fix by the right seam (a missing abstraction, or a humble
    well-named helper), not by chasing the count. **Don't over-decompose** — a
