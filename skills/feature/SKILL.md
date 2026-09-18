@@ -93,12 +93,12 @@ gh issue edit <n> --add-label agent:blocked --remove-label agent:working --remov
 
 ## Stale-claim recovery
 
-Before claiming in puller mode, reset abandoned claims: any ticket `agent:working` with **no branch and no PR** for over **30 minutes** returns to `agent:ready` (unassigned). This is what stops one crashed session from stranding a ticket forever.
+Before claiming in puller mode, reset abandoned claims: any `agent:working` ticket **inactive for over 2 hours** returns to `agent:ready` (unassigned), and is **resumed** from its thread + any open PR — not restarted. This is what stops one dead session (a crash, or the human's usage running out) from stranding a ticket forever.
 
-Measure the 30 minutes from when the claim happened — the `agent:working` `labeled` event on the issue timeline:
+Key off **inactivity, not "has no branch/PR"** — a session that already opened a PR then died must still be recoverable. A dead session can't release its own claim, so recovery has to be passive and time-based, done by the next puller pass. Measure inactivity as the most recent of: the issue's last timeline event, its linked PR's last update, or the working branch's last commit — reclaim only if that is older than 2 hours:
 
 ```bash
-gh api repos/{owner}/{repo}/issues/<n>/timeline --jq 'map(select(.event=="labeled" and .label.name=="agent:working")) | last.created_at'
+gh issue view <n> --json updatedAt --jq .updatedAt   # plus the linked PR's updatedAt, if any
 ```
 
 ## The ticket
