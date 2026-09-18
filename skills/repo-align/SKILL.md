@@ -129,31 +129,41 @@ rule below applies to each extraction step, not to "clear the whole file."
    refactor PRs (`refactor:`). Small — a reviewer should hold the whole diff in
    their head.
 
-## Loop a bounded target to done — not the whole baseline
+## Loop bounded work to done — a few slices, then stop
 
-Zeroing the *entire* baseline in one run is a never-ending grind and not the goal.
-Instead, **pick a bounded target up front** — one file, one module, or a small set
-of related slices (a "surface") — and loop it to completion:
+Don't try to zero the *entire* baseline in one run. Work in **slices** (one
+reviewable PR each) against a claimed **target**, and stop at whichever comes first:
 
-Repeat the loop — pick → fix → verify → review → ship → prune — until one of:
-
-- **Target clean** — every file in the chosen target has dropped from `snooze.json`
-  and `mise run <pkg>:gate` is green from a clean tree. That target is *done*: its
-  final slice's PR carries `Closes #<n>`, so the issue closes when that PR merges.
-  Stop there; let the human decide whether to start another (don't roll straight into
-  the rest of the repo).
+- **Session budget: 3 slices.** Once you've opened 3 PRs this run, **stop and wait**
+  for a go-ahead — don't keep grinding unattended. It's a reviewable batch, not a cap
+  on the campaign; the human says "continue" for the next 3.
+- **Target clean** — every file in the target has dropped from `snooze.json` and
+  `mise run <pkg>:gate` is green from a clean tree. Then move to the next target
+  (within the budget) or stop.
 - **No safe slice left in the target** — what remains is a god class whose seam
   needs a human call. Surface it; don't force a bad seam.
 - **A guardrail trips** — a fix can't be made behaviour-preserving, or the
-  adversarial review keeps rejecting the same slice. Stop and surface it; never
-  lower the bar to make progress.
+  adversarial review keeps rejecting the same slice. Stop and surface it; never lower
+  the bar to make progress.
+
+**Pause without stranding the ticket.** If you stop with a target **not yet clean**
+(budget hit, or otherwise), **release its issue to `agent:ready` and post progress to
+the thread** (what landed, what's left). The 30-min stale reset only recovers a claim
+with *no* branch/PR, so a mid-target claim with open PRs would otherwise strand
+forever. A later run **resumes** such a target from the thread + its open PRs — it
+does not restart.
+
+**Closing is automatic — nobody does it by hand.** The final slice's PR carries
+`Closes #<n>` (intermediate slices use `Refs #<n>`), so the issue closes **when that
+PR merges**. Pickers list only `--state open` and skip `agent:working`, so a done
+(closed) target is never re-picked and an in-flight one is left alone. Don't close a
+ticket before its PR lands — a rejected PR would orphan the work-thread.
 
 The loop condition is **deterministic, never the model's say-so**: a slice is done
-only when the gate is green *and* its file drops from the baseline on prune. Keep
-the main thread as the orchestrator — fan out analyser sub-agents (step 1) and the
-refuting reviewer (step 6); it decides and integrates. That division is what keeps
-a long run from drifting into lazy, self-approved fixes. Scoping to a bounded target
-keeps each run reviewable and gives a clear finish line.
+only when the gate is green *and* its file drops from the baseline on prune. Keep the
+main thread as orchestrator — fan out analyser sub-agents (step 1) and the refuting
+reviewer (step 6). That division, plus the 3-slice budget, keeps a long run from
+drifting into lazy, self-approved fixes.
 
 ## Close the loop — `learn`
 
