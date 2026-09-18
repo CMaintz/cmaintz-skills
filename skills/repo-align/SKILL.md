@@ -34,26 +34,46 @@ Before touching code:
    now name the same target, the **lower issue number wins** — close the dup, pick
    another.
 4. **WIP = 1** — hold one target at a time. **Stale recovery:** if an `agent:working`
-   target's branch, PR, or thread has had **no activity for 30 min**, treat it as
+   target's branch, PR, or thread has had **no activity for 1 hour**, treat it as
    abandoned — reset it to `agent:ready` and resume it (from the thread + any open
    PRs). Key off *inactivity*, not "has no PR": this is the **only** safety net when a
    session dies mid-work (a crash, or the human's usage runs out) — a dead session
    can't release its own claim, so recovery must be passive and time-based, not
-   something it does. Still alive but genuinely stuck? Post why to the thread, then
-   label `agent:blocked`.
+   something it does. (An hour, not minutes, so a genuinely long slice isn't reclaimed
+   out from under a live agent.) Still alive but genuinely stuck? Post why to the
+   thread, then label `agent:blocked`.
 
 `/ship` links each slice's PR to the issue — `Refs #<n>` while the target still has
 findings, `Closes #<n>` on the slice that clears the last one. The issue closes **when
 that PR merges**; never close it by hand. You hold the target across its slices until
 its final PR lands.
 
-## Pick the target — don't grind at random
+## Pick the target — highest cost, not lowest effort
 
-Run **`hotspot-rec`** (Ivett's skill) between slices and take its single
-recommendation: it ranks files by churn × complexity × temporal coupling, so you
-fix where maintenance cost actually lives, not wherever you happen to look. If
-`hotspot-rec` isn't available, pick one bounded directory/module. **Respect the
-coordination protocol above** — reuse a < 1h-old report and claim your slice first.
+Run **`hotspot-rec`** and take its top recommendation: it ranks by churn ×
+complexity × temporal coupling, so you fix where maintenance cost actually lives.
+**Work the ranking honestly — do not cherry-pick.** The failure mode is grabbing
+cheap single-finding files and steering around the dense, high-churn hotspots (the
+god classes) *because* they're hard — that inverts the whole point, since those
+hotspots are where the cost is. A god class isn't skipped: it's a mini-campaign
+(below), and this pass you take its **first** extraction slice. Picking an easy file
+over the ranked #1 is gaming the campaign as surely as splitting-to-pass games a
+smell.
+
+Two **explicit, reviewable** escapes from a target — never a silent skip:
+
+- **Not a real seam → accept it, on the record.** Some findings have no genuine fix:
+  a linear data-carrier (a `toEntity`/`save` mapper, a flat long builder) where any
+  extraction is split-to-pass, not cohesion. Don't force a bad split *and* don't
+  quietly avoid it — **suppress that finding with a written reason** (`// NOPMD -
+  <why>` / `@SuppressWarnings("PMD.<rule>") // <why>`), so the accept shows up in the
+  diff for review instead of hiding as a file you happened not to pick.
+- **Too dense for one safe PR → claim it and ship the first slice.** Progress, not
+  avoidance. Only surface-and-stop if even the first cohesive extraction needs a
+  human seam call.
+
+If `hotspot-rec` isn't available, pick one bounded dir/module — still by cost, not
+convenience. Respect the coordination protocol above: **claim the target first.**
 
 ## The snooze baseline is WHOLE-FILE granular
 
@@ -102,15 +122,17 @@ rule below applies to each extraction step, not to "clear the whole file."
    or a bounded dir. For a god class, fan out **sub-agents** to read the candidate
    collaborators in parallel and report back the seam — don't investigate serially.
 2. **Format** — `mise run <pkg>:fix` (auto-fix + Spotless/ESLint). Review the diff.
-3. **Clear smells** — run `habit-hooks`; fix the findings *properly*. The target
-   is **functions that do one thing** (single level of abstraction, one reason to
-   change — SRP): the `high-complexity` / `oversized-function` / `too-many-parameters`
-   smells are the machine-checkable shadows of a function doing *too many* things.
-   Fix by finding the missing abstraction (a class, a value object, a strategy, a
-   named pipeline step) — never by splitting at line 200 mechanically or extracting
-   a 5-parameter helper (if the helper needs five parameters, the seam is wrong).
-   Refactor toward cohesion, not away from a line count. See foundry's
-   `presets/code-standards.md`. Aim to zero out the file so it can leave the baseline.
+3. **Clear smells** — run `habit-hooks`; fix the findings *properly*. Length and
+   cyclomatic complexity are **real problems in themselves** — a long, branchy method
+   is hard to read and change no matter what — so genuinely reducing them is the goal,
+   not a number to appease. You reduce them by **decomposing into cohesively-named
+   steps**, each doing one thing (SRP). That named step *is* the "abstraction" — it
+   can be as humble as a well-named private helper; it need not be a value object or a
+   strategy (those are just the bigger cases). What's banned is the fake fix: an
+   *arbitrary* cut (`fooPart2`) or an incoherent 5-parameter helper (if it needs five
+   parameters, the seam is wrong) — those move the counter without making the code
+   easier. See foundry's `presets/code-standards.md`. Aim to zero out the file so it
+   can leave the baseline.
 4. **Shrink the baseline — don't hand-edit `snooze.json`.** It's tool-generated;
    regenerate it with `habit-sensors --all | habit-snooze --prune` (drops files
    that no longer have findings). This needs `--all`, which blows the Windows
@@ -139,9 +161,11 @@ rule below applies to each extraction step, not to "clear the whole file."
 Don't try to zero the *entire* baseline in one run. Work in **slices** (one
 reviewable PR each) against a claimed **target**, and stop at whichever comes first:
 
-- **Session budget: 3 targets.** Clear at most 3 bounded targets (files / hotspots)
-  per run, then **stop and wait** for a go-ahead — don't keep grinding unattended. A
-  reviewable batch, not a cap on the campaign; the human says "continue" for the next 3.
+- **Session budget: 3 targets — a claim gate.** Before you claim a new target, check
+  you've cleared fewer than 3 this run; at 3, **stop and don't claim a 4th**. A target
+  is a whole ticket, so you always finish (or hand off) the one you hold — you never
+  stop *mid*-target for budget. A reviewable batch, not a campaign cap; the human says
+  "continue" for the next 3.
 - **Target clean** — every file in the target has dropped from `snooze.json` and
   `mise run <pkg>:gate` is green from a clean tree. That's one of your 3; move to the
   next target or stop.
@@ -151,14 +175,15 @@ reviewable PR each) against a claimed **target**, and stop at whichever comes fi
   adversarial review keeps rejecting the same slice. Stop and surface it; never lower
   the bar to make progress.
 
-**Pause cleanly when you can; the timer covers when you can't.** If you stop with a
-target **not yet clean** *and you're still running* (budget reached, say), release its
-issue to `agent:ready` and post progress to the thread — the next run resumes at once
-instead of waiting out the timer. But a session that dies mid-work (a crash, or you
-hit your usage limit) **can't do that** — so recovery cannot depend on it. That's why
-**stale recovery keys off inactivity, not "no PR yet"** (see coordination step 4): a
-target with open PRs whose session vanished still gets reclaimed. Either way a later
-run **resumes** from the thread + existing PRs; it does not restart.
+**Stopping mid-target: release it if you can, else the timer reclaims it.** You stop
+*mid*-target only **for cause** — a guardrail trip or no-safe-slice — never for budget
+(that's a claim gate, checked between targets). If you're still running, release the
+issue to `agent:ready` and post progress, so the next run resumes at once. But a
+session that dies mid-work (a crash, or your usage runs out) **can't release
+anything** — so recovery can't depend on it. That's why stale recovery keys off
+**inactivity**, not "no PR yet" (coordination step 4): a target with open PRs whose
+session vanished still gets reclaimed. Either way a later run **resumes** from the
+thread + existing PRs; it doesn't restart.
 
 **Closing is automatic — nobody does it by hand.** The final slice's PR carries
 `Closes #<n>` (intermediate slices use `Refs #<n>`), so the issue closes **when that
