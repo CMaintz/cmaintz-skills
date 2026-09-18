@@ -10,42 +10,43 @@ PR per slice** — until it is consistently formatted and free of unjustified
 structural smells. Behaviour-preserving only (format + refactor, never a feature
 change); every test stays green.
 
-## Multi-session coordination — one shared report, claimed slices
+## Multi-session coordination — claim a target as a GitHub ticket
 
-Several sessions run this campaign against the same working copy at once. The
-hotspot analysis is **expensive** (git-history forensics + deep code reading), so
-don't let each session regenerate it, and don't let two sessions grind the same
-file. Coordinate through two scratch files under `.foundry/` (gitignored — session
-state, never committed; add `.foundry/` to `.gitignore` if it isn't there):
+Concurrent align sessions run in **separate worktrees** (each cuts its own branch
+off `origin/main` — foundry's `collaboration.md`), so anything under `.foundry/` is
+**per-worktree and invisible to the others**: a local ledger *or a lock file*
+cannot coordinate them. The one substrate every session shares is the **GitHub
+repo**, so the claim lives there — the same atomic ticket protocol the `/feature`
+driver uses (foundry `presets/ticket-schema.md`; create the `align` / `agent:ready`
+/ `agent:working` / `agent:blocked` labels once per repo).
 
-- `.foundry/hotspots.html` — the shared rendered `hotspot-rec` report.
-- `.foundry/align-claims.md` — the claims ledger (a markdown table).
+The claimed unit is a **bounded target** — one file or module (see *Loop a bounded
+target to done*), one issue labelled `align`. Before touching code:
 
-Your session key is **your branch name** (you cut your own branch off `origin/main`
-— see foundry's `collaboration.md`). The protocol, every time you start a slice:
+1. **Read the report.** Run `hotspot-rec` in your worktree (regenerate freely — it's
+   read-only; not sharing it costs a re-run, never correctness).
+2. **Claim an existing ticket, atomically.** `gh issue list --label align --state open`.
+   Take the highest-ranked hotspot whose ticket is **`agent:ready`** and claim it:
+   `gh issue edit <n> --add-label agent:working --remove-label agent:ready --add-assignee @me`.
+   Then **re-read the issue and confirm you hold it** — if it's already `agent:working`
+   under someone else, you lost the race: skip it and take the next. Never touch a
+   target already `agent:working`.
+3. **No ticket for your target? Create then confirm.** `gh issue create --label
+   "align,agent:working" --assignee @me --title "align: <path>"`, body: acceptance =
+   "`mise run <pkg>:gate` green from a clean tree **and** `<path>` drops from
+   `snooze.json` on prune"; scope = "behaviour-preserving, this target only". Then
+   **re-list** `--label align`: if two open tickets now name the same target (a
+   create race), the **lower issue number wins** — close yours as a duplicate and
+   pick another target.
+4. **WIP = 1** per session. A target `agent:working` with no branch/PR for 30 min
+   resets to `agent:ready` (ticket-schema's stale recovery). On a genuine block,
+   post the reason to the issue thread, then label `agent:blocked` — the thread
+   outlives the session; an in-context explanation dies with it.
 
-1. **Read the ledger.** Open `.foundry/align-claims.md` if it exists — it shows
-   which slices other sessions have claimed and their status.
-2. **Reuse a fresh report; regenerate only a stale one.** If `.foundry/hotspots.html`
-   exists and is **< 1 hour old** (`find .foundry/hotspots.html -mmin -60 -print`
-   prints it), use it **as-is** — the ranking barely moves in an hour and the
-   analysis isn't worth re-running. Otherwise (missing or ≥ 1h) regenerate it with
-   `hotspot-rec` writing to `.foundry/hotspots.html`, and **preserve** any
-   `in_progress` rows already in the ledger.
-3. **Claim before you cut.** Take the top recommendation **not already claimed
-   `in_progress`**, and append your row to the ledger — this is your lock:
-
-   ```
-   | Slice / target | Files or dir | Claimed by (branch) | Status | Since |
-   |---|---|---|---|---|
-   | DocumentGenerator god class | backend/.../DocumentGenerator.java | refactor/docgen-strategy | in_progress | 2026-09-15 |
-   ```
-4. **Release when done.** When your slice ships, set your row's Status to `done`.
-5. **Tidy up only if you're last out.** After marking `done`: if **no** row is
-   still `in_progress`, the report is fully consumed — delete `.foundry/hotspots.html`
-   and clear the ledger so the next session starts from a fresh analysis. If **any**
-   row is still `in_progress`, leave both files alone — another session is mid-slice
-   and relying on them.
+`/ship` links each slice's PR to the issue; the target is done when it's clean and
+the issue closes. **No GitHub remote?** Run align sessions **one at a time** — the
+local-md ticket fallback isn't shared across worktrees either, so real concurrency
+needs the GitHub transport.
 
 ## Pick the target — don't grind at random
 
@@ -97,9 +98,9 @@ rule below applies to each extraction step, not to "clear the whole file."
 
 ## The loop — one slice per PR
 
-1. **Pick** — reuse-or-regen the shared report and **claim your slice** (see
-   *Multi-session coordination*); take `hotspot-rec`'s one unclaimed recommendation
-   (or a bounded dir). For a god class, fan out **sub-agents** to read the candidate
+1. **Pick + claim** — run `hotspot-rec`, then **claim a target ticket** on GitHub
+   (see *Multi-session coordination*) — its top target whose ticket you can claim,
+   or a bounded dir. For a god class, fan out **sub-agents** to read the candidate
    collaborators in parallel and report back the seam — don't investigate serially.
 2. **Format** — `mise run <pkg>:fix` (auto-fix + Spotless/ESLint). Review the diff.
 3. **Clear smells** — run `habit-hooks`; fix the findings *properly*. The target
@@ -143,9 +144,9 @@ of related slices (a "surface") — and loop it to completion:
 Repeat the loop — pick → fix → verify → review → ship → prune — until one of:
 
 - **Target clean** — every file in the chosen target has dropped from `snooze.json`
-  and `mise run <pkg>:gate` is green from a clean tree. That target is *done*; stop
-  there and let the human decide whether to start another (don't roll straight into
-  the rest of the repo).
+  and `mise run <pkg>:gate` is green from a clean tree. That target is *done*: close
+  its `align` issue and stop there; let the human decide whether to start another
+  (don't roll straight into the rest of the repo).
 - **No safe slice left in the target** — what remains is a god class whose seam
   needs a human call. Surface it; don't force a bad seam.
 - **A guardrail trips** — a fix can't be made behaviour-preserving, or the
