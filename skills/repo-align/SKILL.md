@@ -33,9 +33,14 @@ Before touching code:
    scope = behaviour-preserving, this target only). Re-list `--label align`; if two
    now name the same target, the **lower issue number wins** — close the dup, pick
    another.
-4. **WIP = 1.** Hold one target at a time. A target `agent:working` with no branch or
-   PR for 30 min is stale — reset it to `agent:ready`. Blocked? Post why to the issue
-   thread, then label `agent:blocked`.
+4. **WIP = 1** — hold one target at a time. **Stale recovery:** if an `agent:working`
+   target's branch, PR, or thread has had **no activity for 30 min**, treat it as
+   abandoned — reset it to `agent:ready` and resume it (from the thread + any open
+   PRs). Key off *inactivity*, not "has no PR": this is the **only** safety net when a
+   session dies mid-work (a crash, or the human's usage runs out) — a dead session
+   can't release its own claim, so recovery must be passive and time-based, not
+   something it does. Still alive but genuinely stuck? Post why to the thread, then
+   label `agent:blocked`.
 
 `/ship` links each slice's PR to the issue — `Refs #<n>` while the target still has
 findings, `Closes #<n>` on the slice that clears the last one. The issue closes **when
@@ -134,24 +139,26 @@ rule below applies to each extraction step, not to "clear the whole file."
 Don't try to zero the *entire* baseline in one run. Work in **slices** (one
 reviewable PR each) against a claimed **target**, and stop at whichever comes first:
 
-- **Session budget: 3 slices.** Once you've opened 3 PRs this run, **stop and wait**
-  for a go-ahead — don't keep grinding unattended. It's a reviewable batch, not a cap
-  on the campaign; the human says "continue" for the next 3.
+- **Session budget: 3 targets.** Clear at most 3 bounded targets (files / hotspots)
+  per run, then **stop and wait** for a go-ahead — don't keep grinding unattended. A
+  reviewable batch, not a cap on the campaign; the human says "continue" for the next 3.
 - **Target clean** — every file in the target has dropped from `snooze.json` and
-  `mise run <pkg>:gate` is green from a clean tree. Then move to the next target
-  (within the budget) or stop.
+  `mise run <pkg>:gate` is green from a clean tree. That's one of your 3; move to the
+  next target or stop.
 - **No safe slice left in the target** — what remains is a god class whose seam
   needs a human call. Surface it; don't force a bad seam.
 - **A guardrail trips** — a fix can't be made behaviour-preserving, or the
   adversarial review keeps rejecting the same slice. Stop and surface it; never lower
   the bar to make progress.
 
-**Pause without stranding the ticket.** If you stop with a target **not yet clean**
-(budget hit, or otherwise), **release its issue to `agent:ready` and post progress to
-the thread** (what landed, what's left). The 30-min stale reset only recovers a claim
-with *no* branch/PR, so a mid-target claim with open PRs would otherwise strand
-forever. A later run **resumes** such a target from the thread + its open PRs — it
-does not restart.
+**Pause cleanly when you can; the timer covers when you can't.** If you stop with a
+target **not yet clean** *and you're still running* (budget reached, say), release its
+issue to `agent:ready` and post progress to the thread — the next run resumes at once
+instead of waiting out the timer. But a session that dies mid-work (a crash, or you
+hit your usage limit) **can't do that** — so recovery cannot depend on it. That's why
+**stale recovery keys off inactivity, not "no PR yet"** (see coordination step 4): a
+target with open PRs whose session vanished still gets reclaimed. Either way a later
+run **resumes** from the thread + existing PRs; it does not restart.
 
 **Closing is automatic — nobody does it by hand.** The final slice's PR carries
 `Closes #<n>` (intermediate slices use `Refs #<n>`), so the issue closes **when that
