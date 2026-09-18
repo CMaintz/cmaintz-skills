@@ -122,17 +122,16 @@ rule below applies to each extraction step, not to "clear the whole file."
    or a bounded dir. For a god class, fan out **sub-agents** to read the candidate
    collaborators in parallel and report back the seam — don't investigate serially.
 2. **Format** — `mise run <pkg>:fix` (auto-fix + Spotless/ESLint). Review the diff.
-3. **Clear smells** — run `habit-hooks`; fix the findings *properly*. Length and
-   cyclomatic complexity are **real problems in themselves** — a long, branchy method
-   is hard to read and change no matter what — so genuinely reducing them is the goal,
-   not a number to appease. You reduce them by **decomposing into cohesively-named
-   steps**, each doing one thing (SRP). That named step *is* the "abstraction" — it
-   can be as humble as a well-named private helper; it need not be a value object or a
-   strategy (those are just the bigger cases). What's banned is the fake fix: an
-   *arbitrary* cut (`fooPart2`) or an incoherent 5-parameter helper (if it needs five
-   parameters, the seam is wrong) — those move the counter without making the code
-   easier. See foundry's `presets/code-standards.md`. Aim to zero out the file so it
-   can leave the baseline.
+3. **Clear smells** — run `habit-hooks`; fix the findings *properly*. The goal is
+   **cohesion** (each function doing one thing), not a smaller number.
+   `high-complexity` / `oversized-function` / `too-many-parameters` are *signals* it's
+   doing too much — fix by the right seam (a missing abstraction, or a humble
+   well-named helper), not by chasing the count. **Don't over-decompose** — a
+   straight-line sequence of steps is fine as one function; extract on real complexity
+   or a pyramid of doom, not reflexively — and **don't chase length**, since
+   mechanically shortening can chop cohesion or functionality. Banned: the arbitrary
+   cut (`fooPart2`) and the incoherent 5-parameter helper. See foundry's
+   `presets/code-standards.md`. Aim to zero out the file so it can leave the baseline.
 4. **Shrink the baseline — don't hand-edit `snooze.json`.** It's tool-generated;
    regenerate it with `habit-sensors --all | habit-snooze --prune` (drops files
    that no longer have findings). This needs `--all`, which blows the Windows
