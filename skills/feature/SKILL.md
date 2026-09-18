@@ -39,8 +39,6 @@ Then **re-read** the issue and confirm you hold it (`agent:working`, assigned to
 
 **WIP = 1.** If a ticket already assigned to you sits in `agent:working`, finish or release it first. One in-flight ticket per machine.
 
-> Local-md fallback: the claim is a `status: working` + `claimed_at:` stamp edit committed to the ticket file; the same WIP and re-read rules apply.
-
 ### 2. Isolated worktree
 
 One ticket, one worktree, one branch off `origin/main`, one PR — matching `collaboration.md`:
@@ -103,11 +101,9 @@ Measure the 30 minutes from when the claim happened — the `agent:working` `lab
 gh api repos/{owner}/{repo}/issues/<n>/timeline --jq 'map(select(.event=="labeled" and .label.name=="agent:working")) | last.created_at'
 ```
 
-On the local-md transport, measure from the `claimed_at` frontmatter stamp instead.
-
 ## The ticket
 
-One schema, two transports (GitHub Issue body / local `tickets/*.md` frontmatter), normalized to one object. The authoritative fields — intent, the acceptance-criteria checklist, scope boundaries, pointers — live in Foundry's `presets/ticket-schema.md`. The checklist is load-bearing: it is what step 4 and `ship`'s spec review walk item by item.
+A GitHub Issue, normalized to one object. The authoritative fields — intent, the acceptance-criteria checklist, scope boundaries, pointers — live in Foundry's `presets/ticket-schema.md`. The checklist is load-bearing: it is what step 4 and `ship`'s spec review walk item by item.
 
 ## Stop conditions
 
