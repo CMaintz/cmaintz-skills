@@ -21,7 +21,16 @@ the loop below). Requires the `align` / `agent:ready` / `agent:working` /
 
 Before touching code:
 
-1. **Pick a target** from `hotspot-rec` (run it in your worktree).
+1. **Pick a target** from `hotspot-rec` (run it in your worktree) — but first screen
+   it against **recently-closed `align` issues** (`gh issue list --label align --state
+   closed --limit 20 --json number,title,closedAt`). If `hotspot-rec`'s top pick names
+   a file a *recently*-closed `align` issue already worked, be suspicious: a fix PR adds
+   churn to the very file it improved, so `hotspot-rec` (churn × complexity) ranks a
+   just-remediated file **higher** for a while — you can be steered straight back onto
+   work that was already done, grinding the same file for no real gain. Skip to the next
+   ranked target UNLESS you can name a concrete reason to return (a genuine regression, or
+   a god-class campaign whose *next* extraction slice is still outstanding). If you do
+   return, say why in the claim issue.
 2. **Claim it atomically.** Prefer an open `align` issue for that target that is
    `agent:ready`:
    `gh issue edit <n> --add-label agent:working --remove-label agent:ready --add-assignee @me`,
@@ -50,8 +59,9 @@ its final PR lands.
 
 ## Pick the target — highest cost, not lowest effort
 
-Run **`hotspot-rec`** and take its top recommendation: it ranks by churn ×
-complexity × temporal coupling, so you fix where maintenance cost actually lives.
+Run **`hotspot-rec`** and take its top recommendation (after the recently-worked
+screen in step 1): it ranks by churn × complexity × temporal coupling, so you fix
+where maintenance cost actually lives.
 **Work the ranking honestly — do not cherry-pick.** The failure mode is grabbing
 cheap single-finding files and steering around the dense, high-churn hotspots (the
 god classes) *because* they're hard — that inverts the whole point, since those
@@ -65,9 +75,11 @@ Two **explicit, reviewable** escapes from a target — never a silent skip:
 - **Not a real seam → accept it, on the record.** Some findings have no genuine fix:
   a linear data-carrier (a `toEntity`/`save` mapper, a flat long builder) where any
   extraction is split-to-pass, not cohesion. Don't force a bad split *and* don't
-  quietly avoid it — **suppress that finding with a written reason** (`// NOPMD -
-  <why>` / `@SuppressWarnings("PMD.<rule>") // <why>`), so the accept shows up in the
-  diff for review instead of hiding as a file you happened not to pick.
+  quietly avoid it — **suppress it with the branded marker + a reason**:
+  `// foundry-allow-smell: <why>` (foundry sets PMD's suppress-marker to this; it's
+  the `foundry-allow-var` sibling). The accept then shows up in the diff for review
+  instead of hiding as a file you happened not to pick. Use sparingly — a real
+  refactor, not a dodge.
 - **Too dense for one safe PR → claim it and ship the first slice.** Progress, not
   avoidance. Only surface-and-stop if even the first cohesive extraction needs a
   human seam call.
