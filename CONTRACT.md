@@ -19,6 +19,10 @@ Every repo, regardless of language, exposes these six verbs:
 
 A repo with no meaningful work for a verb still defines it as a no-op that exits 0. Absence is not permitted — a caller must never have to ask whether a verb exists.
 
+## Auxiliary tasks
+
+A repo may define additional `mise` tasks beyond the six (e.g. `spotbugs`, `novar`, `eval`, `setup:pmd`). These are **repo-local and not part of the contract**: no caller may assume they exist, and `gate` need not run them. They exist for work that is either not universal across repos or deliberately advisory (report-only). A capability graduates to a seventh contract verb only if it is **universal** — nearly every repo has real work for it — *and* cannot fit inside an existing verb. Until both hold, extend a verb's *composition* (what `lint`/`typecheck`/`test`/`audit` already run) or add an auxiliary task; do not grow the six.
+
 ## Rules for callers
 
 **Callers invoke verbs, never tools.** A skill says `mise run lint`. It never says `eslint`, `phpcs`, or `ruff`. This is the whole reason a single skill library can serve a Kotlin repo and a React repo.
