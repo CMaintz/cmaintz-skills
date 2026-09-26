@@ -2,6 +2,8 @@
 
 The agent half of [Foundry](https://github.com/CMaintz/foundry): skills and hooks that turn a deterministic engineering gate into a set of habits an agent actually keeps.
 
+![reflex hooks format + coach as an agent edits, then /foundry:ship drives the gate to a PR](docs/demo.svg)
+
 The CI half lives in **[foundry](https://github.com/CMaintz/foundry)**. The seam between them is [CONTRACT.md](./CONTRACT.md), copied verbatim into both.
 
 ## Install
