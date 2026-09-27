@@ -1,5 +1,5 @@
 {"version":2,"width":82,"height":14,"env":{"SHELL":"/bin/bash","TERM":"xterm-256color"}}
-[0.4,"o","\u001b[90m# an agent edits — the habits keep themselves\u001b[0m\r\n"]
+[0.4,"o","\u001b[90m# an agent edits; the reflex hooks fire on their own\u001b[0m\r\n"]
 [1.3,"o","\u001b[1;36medit\u001b[0m src/Foo.ts\r\n"]
 [2.1,"o","  \u001b[1;33mhook\u001b[0m auto-format   prettier --write src/Foo.ts       \u001b[90m[PostToolUse]\u001b[0m\r\n"]
 [3,"o","  \u001b[1;33mhook\u001b[0m habit-hooks   oversized-function -> coached      \u001b[90m[Stop]\u001b[0m\r\n"]
@@ -7,4 +7,4 @@
 [4.7,"o","  fix \u001b[1;32mok\u001b[0m   gate \u001b[1;32mok\u001b[0m   fresh-context review \u001b[1;32mok\u001b[0m\r\n"]
 [5.5,"o","  \u001b[32m->\u001b[0m PR #42 opened\r\n"]
 [6.8,"o","\r\n\u001b[90m# deterministic gate + agent habits = standards that actually hold.\u001b[0m\r\n"]
-[8.2,"o"," "]
+[11.3,"o"," "]

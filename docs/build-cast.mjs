@@ -10,7 +10,7 @@ const ok = `${E}[1;32mok${E}[0m`;
 const green = (s) => `${E}[32m${s}${E}[0m`;
 
 const steps = [
-  [0.4, dim('# an agent edits — the habits keep themselves') + '\r\n'],
+  [0.4, dim('# an agent edits; the reflex hooks fire on their own') + '\r\n'],
   [0.9, cyan('edit') + ' src/Foo.ts\r\n'],
   [0.8, `  ${hook} auto-format   prettier --write src/Foo.ts       ${dim('[PostToolUse]')}\r\n`],
   [0.9, `  ${hook} habit-hooks   oversized-function -> coached      ${dim('[Stop]')}\r\n`],
@@ -18,7 +18,7 @@ const steps = [
   [0.7, `  fix ${ok}   gate ${ok}   fresh-context review ${ok}\r\n`],
   [0.8, `  ${green('->')} PR #42 opened\r\n`],
   [1.3, '\r\n' + dim('# deterministic gate + agent habits = standards that actually hold.') + '\r\n'],
-  [1.4, ' '],
+  [4.5, ' '], // hold the final line ~4.5s before the loop restarts — it's the takeaway
 ];
 
 const header = { version: 2, width: 82, height: 14, env: { SHELL: '/bin/bash', TERM: 'xterm-256color' } };
