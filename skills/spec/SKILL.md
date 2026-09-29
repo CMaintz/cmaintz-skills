@@ -8,11 +8,14 @@ description: Turn a rough idea into a concrete, testable spec through a short ba
 The front half of the Foundry loop, before `feature`. A vague idea becomes a
 **schema-complete, testable ticket** an agent can be trusted to work unsupervised.
 
-The loop already has a quality gate on the *output* — the deterministic `gate`. This
-skill is the quality gate on the *input*: `feature`'s output quality is capped by the
-ticket's, so a groomed ticket is worth more than any amount of mid-implementation
-steering. **It never writes code and never opens a PR** — it produces a ticket and hands
-off to `feature`.
+The deterministic quality gate on the *input* is the **schema** itself — `ticket-schema.md`
++ the `agent-feature` issue form make the fields required, so a malformed ticket can't be
+filed (the same "structure enforces quality, not a model" principle as the output `gate`).
+This skill is the *assisted author* on top: since `feature`'s output quality is capped by
+the ticket's, it helps you produce a schema-satisfying ticket — **eliciting** testable
+criteria from you rather than inventing them. **It never writes code and never opens a PR**;
+it produces a ticket and hands off to `feature`. You can always author by hand — `spec` just
+raises the floor.
 
 ## The sequence
 
