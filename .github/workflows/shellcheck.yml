@@ -1,0 +1,29 @@
+# The hooks run on every user's machine (Linux, macOS, Windows git-bash), so lint them.
+name: shellcheck
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Install shellcheck (pinned, checksum-verified)
+        env:
+          VERSION: "0.11.0"
+          SHA256: "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/shellcheck.tar.xz" \
+            "https://github.com/koalaman/shellcheck/releases/download/v${VERSION}/shellcheck-v${VERSION}.linux.x86_64.tar.xz"
+          echo "${SHA256}  $RUNNER_TEMP/shellcheck.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP" --strip-components=1 "shellcheck-v${VERSION}/shellcheck"
+      # Every file in hooks/, including the extensionless git hook (pre-push).
+      - name: shellcheck hooks/
+        run: find hooks -type f -print0 | xargs -0 "$RUNNER_TEMP/shellcheck"
