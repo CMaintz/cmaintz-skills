@@ -47,7 +47,7 @@ One ticket, one worktree, one branch off `origin/main`, one PR — matching `col
 git worktree add -b feat/<slug>-<n> ../_wt/<slug>-<n> origin/main
 ```
 
-Work only in that worktree so the main checkout stays untouched.
+Work only in that worktree so the main checkout stays untouched. A new worktree has no installed deps (`node_modules`, PMD, ...), so run `mise install` in it first; otherwise `habit-hooks` reports its tools as missing instead of checking anything.
 
 ### 3. Inner loop — drive the gate green (bounded)
 

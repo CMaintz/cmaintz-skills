@@ -42,6 +42,14 @@ fi
 fail=0; report=""
 for d in $dirs; do
   out=$(cd "$d" && habit-hooks --branch 2>&1); rc=$?
+  # A JS package never installed here (fresh clone or worktree): its sensors report
+  # eslint/knip/ts-morph as "not installed", which nudges the agent into
+  # `npm install --save-dev <tool>`. The deps are declared, just not installed.
+  if [ "$rc" -ne 0 ] && [ -f "$d/package.json" ] && [ ! -d "$d/node_modules" ]; then
+    out="${d}/node_modules is missing, so the habit sensors couldn't run. Install what
+package.json already declares (\`mise install\` if the repo provisions it, else
+\`npm ci\` in ${d}) and finish again. Don't add or change dependencies for this."
+  fi
   if [ "$rc" -ne 0 ]; then
     fail=1
     report="${report}
