@@ -23,7 +23,7 @@ fi
 
 # Resolve the vendored scripts: the plugin root when plugin-managed, else relative to
 # this hook (works when run from the repo). If it cannot be found, no-op silently.
-root="${CLAUDE_PLUGIN_ROOT:-$(CDPATH= cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
+root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
 triage="$root/scripts/jev/toolcall.mjs"
 [ -f "$triage" ] || exit 0
 
