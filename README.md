@@ -72,9 +72,6 @@ A `Stop` hook that runs `./gradlew spotlessApply` once when a turn finishes, but
 ### `hooks/typecheck-stop.sh`
 A `Stop` hook that runs `mise run typecheck` once per turn — but only when the turn touched source and the repo defines an **exact top-level** `typecheck` task (monorepos namespace theirs, so it cleanly no-ops there) — and `exit 2`s with the errors as coaching if it fails; infrastructure failures never block. It catches **type errors a turn before `/ship` would**, closing the in-loop feedback gap habit-hooks-guard (smells only) leaves open. Heavier than the per-edit formatters (it's tsc / gradle compile / mypy over the project), so it's a deliberate opt-in for people who want the type check mirrored locally; skip it if the per-turn latency isn't worth it on a slow Gradle build.
 
-### `hooks/jev-toolcall-triage.sh`
-A `Stop` hook that asks [Jev](https://typesafe.ai) whether the turn just finished included a destructive or irreversible action (a deletion, a force-push, a dropped table, a side-effecting external call) and prints a one-line warning if so. **Advisory and warn-only: it never blocks** (it never `exit 2`s), because Jev is ~68% accurate and a proposer, not the oracle. Opt-in by tooling: it no-ops silently unless `JEV_API_KEY` is set and `node` is on PATH, so it is safe to install globally. It calls the vendored advisory layer in `scripts/jev/` (see [The advisory Jev layer](#the-advisory-jev-layer)); with no key it costs nothing. Register it as another `Stop` hook alongside `habit-hooks-guard.sh` (order-independent; it always exits 0).
-
 ### `hooks/pre-push`
 A native **git** `pre-push` hook (POSIX sh, not a Claude hook) that runs `mise run gate` before a push and aborts on failure — so a plain `git push` by a human gets the same gate the agent's `/ship` enforces. No-op where there's no `mise.toml`. Install with `cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (or version it via `core.hooksPath`); bypass once with `git push --no-verify`.
 
@@ -90,7 +87,7 @@ with no key every entry point falls back to current behavior. Optional env:
 `JEV_PROVIDER` (`typesafe` | `cloudflare`), `JEV_MODEL` (default `jev-latest`),
 `CLOUDFLARE_ACCOUNT_ID`, and `TYPESAFE_AI_BASE_URL` (self-host / proxy / mock).
 
-Three consumers, all advisory:
+Two consumers, both advisory:
 
 - **Review focus** (`review` skill) - `scripts/jev/review.mjs` routes which changed files
   warrant deep review and on which lens. It only reorders where to look first; it never
@@ -98,8 +95,6 @@ Three consumers, all advisory:
 - **Feature pre-check** (`feature` skill) - `scripts/jev/precheck.mjs` gives a cheap
   Noul on "ticket ready?" / "diff plausibly satisfies the criteria?" before an expensive
   LLM verify. Only a confident "no" short-circuits; uncertainty proceeds.
-- **Tool-call triage** (`hooks/jev-toolcall-triage.sh`) - warns when a turn looks
-  destructive. Warn-only, never blocks.
 
 **The invariant:** Jev is ~68% accurate, so it stays strictly on the proposer side and
 **never enters the deterministic gate** (`mise run gate`) or CI. `client.mjs` and
