@@ -77,7 +77,7 @@ A green gate proves the code is *clean*; it does not prove the feature *works*. 
 
 ### 5. Hand to ship
 
-Invoke **`cmaintz-skills:ship`**. It re-runs the gate as the final authority, reviews the diff in a fresh context against the linked issue, writes a conventional commit, and opens the PR. Reference the ticket (`Closes #<n>`) so it closes on merge, and clear `agent:working`.
+Invoke **`foundry:ship`**. It re-runs the gate as the final authority, reviews the diff in a fresh context against the linked issue, writes a conventional commit, and opens the PR. Reference the ticket (`Closes #<n>`) so it closes on merge, and clear `agent:working`.
 
 ## Escalation
 
