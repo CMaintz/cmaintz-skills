@@ -78,6 +78,11 @@ A native **git** `pre-push` hook (POSIX sh, not a Claude hook) that runs `mise r
 ### `hooks/guard-generated-files.sh`
 A `PreToolUse` hook (matches `Edit|Write|MultiEdit`) that **hard-blocks** an agent from hand-editing tool-generated baselines — `snooze.json` and `eslint-suppressions.json` — with `exit 2` and a message pointing at the real path (regenerate via bootstrap `habit-snooze --prune` / `mise run fix`). This is *enforcement over recall*: the repo-align skill *says* not to hand-edit these, but a skill is advisory and decays with context; a PreToolUse block is involuntary. Fires only on the agent's own edits — CI/bootstrap regenerate these outside the agent's tools.
 
+### `hooks/jev-toolcall-triage.sh`
+An **opt-in** `Stop` hook that asks [Jev](https://typesafe.ai) whether the turn looked destructive or irreversible (deleting data, force-pushing, dropping a table, a payment or side-effecting external call) and prints a one-line **warning**; it is advisory and **never blocks** (it never `exit 2`s; Jev is a proposer, not the oracle). It is the dev-loop *coach* counterpart to a runtime guardrail like `jev-guard`, which actually blocks real calls in a shipped agent.
+
+Off by default, and easy to flip: it no-ops unless `JEV_TOOLCALL_TRIAGE` is truthy, on top of needing `JEV_API_KEY` and `node`. Enable it for a session with `export JEV_TOOLCALL_TRIAGE=1` and disable it by unsetting the variable, with no `settings.json` edit needed. Register it as a `Stop` hook alongside the others (order-independent; it only ever exits 0). Silent no-op when off, keyless, or outside a repo, so it is safe to register globally.
+
 ## The advisory Jev layer
 
 `scripts/jev/` is a near-free [Jev](https://typesafe.ai) (TypeSafe System One) layer on
@@ -87,7 +92,7 @@ with no key every entry point falls back to current behavior. Optional env:
 `JEV_PROVIDER` (`typesafe` | `cloudflare`), `JEV_MODEL` (default `jev-latest`),
 `CLOUDFLARE_ACCOUNT_ID`, and `TYPESAFE_AI_BASE_URL` (self-host / proxy / mock).
 
-Two consumers, both advisory:
+Three consumers, all advisory:
 
 - **Review focus** (`review` skill) - `scripts/jev/review.mjs` routes which changed files
   warrant deep review and on which lens. It only reorders where to look first; it never
@@ -95,6 +100,9 @@ Two consumers, both advisory:
 - **Feature pre-check** (`feature` skill) - `scripts/jev/precheck.mjs` gives a cheap
   Noul on "ticket ready?" / "diff plausibly satisfies the criteria?" before an expensive
   LLM verify. Only a confident "no" short-circuits; uncertainty proceeds.
+- **Tool-call triage** (`jev-toolcall-triage.sh` Stop hook, `scripts/jev/toolcall.mjs`) -
+  warns when a turn looks destructive or irreversible. Opt-in and off by default behind
+  `JEV_TOOLCALL_TRIAGE`; warn-only, never blocks. See the hook section above.
 
 **The invariant:** Jev is ~68% accurate, so it stays strictly on the proposer side and
 **never enters the deterministic gate** (`mise run gate`) or CI. `client.mjs` and
