@@ -61,6 +61,15 @@ single pass still applies this: review the diff, not your memory of writing it.)
    - if a repo-local `build-project-review` skill exists, load its criteria into
      the Standards lens
 
+   **Optional Jev focus (advisory, opt-in).** If `JEV_API_KEY` is set and the
+   breadth is medium or large, run
+   `node "$CLAUDE_PLUGIN_ROOT/scripts/jev/review.mjs" <base>` for near-free per-file
+   routing (`{file, review, lens, reason}`). Point the lenses first at the files it
+   marks `review: true`, on the lens it names; still give the rest a baseline pass and
+   log which were deprioritized. No key, or a small diff, reviews everything as before.
+   This only reorders where to look first: Jev never removes a file from review and
+   never decides pass/fail.
+
 3. **Run the lenses at the chosen breadth.** Each lens, given only the diff plus
    the context above:
    - **Correctness** — bugs, wrong edge cases, unhandled errors, race conditions,

@@ -75,6 +75,8 @@ On exhaustion or no-progress, [escalate](#escalation).
 
 A green gate proves the code is *clean*; it does not prove the feature *works*. Invoke the `verify` skill (or `run`) and walk the acceptance checklist **item by item** — every criterion accounted for, pass or fail. If a criterion cannot be met, [escalate](#escalation).
 
+**Optional Jev pre-check (advisory, opt-in, off by default).** Enabled only when `JEV_FEATURE_PRECHECK` is truthy (and `JEV_API_KEY` is set); otherwise the script no-ops and proceeds, so it is safe to call unconditionally. Run `node "$CLAUDE_PLUGIN_ROOT/scripts/jev/precheck.mjs" satisfies "<acceptance criteria>" <base>`. A `proceed: false` (a confident "no") means the diff likely misses a criterion, so fix that before spending the full verify. Anything else (uncertain, disabled, or no key) proceeds to the verify below. This never replaces the verify; it only avoids spending one on an obvious miss. (The same script's `ready` mode can pre-screen a ticket's completeness in puller mode at step 1.) Enable with `export JEV_FEATURE_PRECHECK=1`, disable by unsetting it.
+
 ### 5. Hand to ship
 
 Invoke **`cmaintz-skills:ship`**. It re-runs the gate as the final authority, reviews the diff in a fresh context against the linked issue, writes a conventional commit, and opens the PR. Reference the ticket (`Closes #<n>`) so it closes on merge, and clear `agent:working`.
