@@ -60,7 +60,7 @@ Find the linked issue if there is one (`gh issue view <n>`, or a reference in th
 
 The review **must run in a context that never saw the code being written**. This is not ceremony: an agent reviewing its own work reviews its *intent* rather than its *diff*, and will confidently miss what it meant to do but didn't. A fresh context has no intent to be loyal to.
 
-Invoke **`cmaintz-skills:review`**. It runs three fresh-context lenses — correctness, standards, spec — in parallel, folds in a repo-local `build-project-review` skill if one exists, and reports deduped findings. It's the single entry point precisely so `ship` (and you) don't juggle reviewers. Surface what it finds to the user before committing.
+Invoke **`foundry:review`**. It runs three fresh-context lenses — correctness, standards, spec — in parallel, folds in a repo-local `build-project-review` skill if one exists, and reports deduped findings. It's the single entry point precisely so `ship` (and you) don't juggle reviewers. Surface what it finds to the user before committing.
 
 > The built-in `/code-review` is a *different* tool — a fast, on-demand bug-and-cleanup pass the user runs by hand, with `--fix`. It is not part of `ship`.
 
