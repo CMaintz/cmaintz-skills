@@ -92,6 +92,12 @@ with no key every entry point falls back to current behavior. Optional env:
 `JEV_PROVIDER` (`typesafe` | `cloudflare`), `JEV_MODEL` (default `jev-latest`),
 `CLOUDFLARE_ACCOUNT_ID`, and `TYPESAFE_AI_BASE_URL` (self-host / proxy / mock).
 
+The two consumers that interrupt a turn carry an explicit **off-by-default** toggle, so
+the key alone does not enable them: `JEV_TOOLCALL_TRIAGE` (tool-call triage) and
+`JEV_FEATURE_PRECHECK` (feature pre-check). Set either to `1` (or `true`/`yes`/`on`) to
+turn it on, unset it to turn it off. Review focus has no toggle; it only reorders where
+to look and never interrupts, so the key is enough.
+
 Three consumers, all advisory:
 
 - **Review focus** (`review` skill) - `scripts/jev/review.mjs` routes which changed files
@@ -99,7 +105,8 @@ Three consumers, all advisory:
   drops a file from review.
 - **Feature pre-check** (`feature` skill) - `scripts/jev/precheck.mjs` gives a cheap
   Noul on "ticket ready?" / "diff plausibly satisfies the criteria?" before an expensive
-  LLM verify. Only a confident "no" short-circuits; uncertainty proceeds.
+  LLM verify. Only a confident "no" short-circuits; uncertainty proceeds. Opt-in and off
+  by default behind `JEV_FEATURE_PRECHECK`.
 - **Tool-call triage** (`jev-toolcall-triage.sh` Stop hook, `scripts/jev/toolcall.mjs`) -
   warns when a turn looks destructive or irreversible. Opt-in and off by default behind
   `JEV_TOOLCALL_TRIAGE`; warn-only, never blocks. See the hook section above.

@@ -2,7 +2,8 @@
 // Feature-loop pre-check (advisory). Before an expensive LLM verify, ask Jev one cheap
 // Noul: is the ticket ready to work, or does the current diff plausibly satisfy the
 // acceptance criteria? Only a confident "no" short-circuits; anything uncertain falls
-// through to the LLM verify. Fail-open: no key or any error => proceed.
+// through to the LLM verify. Fail-open: no key or any error => proceed. Opt-in and off
+// by default: it no-ops (proceeds) unless JEV_FEATURE_PRECHECK is truthy.
 //
 //   node precheck.mjs ready     "<ticket text>"
 //   node precheck.mjs satisfies "<acceptance criteria>" [baseRef]
@@ -11,6 +12,13 @@ import { execSync } from 'node:child_process';
 import { providerFromEnv } from './client.mjs';
 
 const LOW_BAR = 0.15; // below this probability it is a confident "no"
+
+/** Explicit opt-in toggle, default OFF (same convention as the tool-call triage hook):
+ * on only when JEV_FEATURE_PRECHECK is truthy, so the key alone does not enable it. */
+export function enabled(env = process.env) {
+  const value = (env.JEV_FEATURE_PRECHECK ?? '').toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes' || value === 'on';
+}
 
 export function readyQuestion() {
   return {
@@ -46,7 +54,7 @@ function noulOf(answers) {
 
 async function main() {
   const [mode, text, baseRef = 'origin/main'] = process.argv.slice(2);
-  const provider = providerFromEnv();
+  const provider = enabled() ? providerFromEnv() : null;
   if (!provider || (mode !== 'ready' && mode !== 'satisfies')) {
     return void process.stdout.write(`${JSON.stringify(verdict(null))}\n`);
   }
