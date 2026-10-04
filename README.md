@@ -14,7 +14,8 @@ The CI half lives in [foundry](https://github.com/CMaintz/foundry). The seam bet
 ```
 
 The skills are namespaced by the plugin: `/foundry:ship`, `/foundry:review`, `/foundry:feature`,
-`/foundry:spec`, `/foundry:repo-align`, `/foundry:loop-report` and `/foundry:foundry-secret`.
+`/foundry:spec`, `/foundry:repo-align`, `/foundry:loop-report`, `/foundry:pr-ci-watch` and
+`/foundry:foundry-secret`.
 
 ## Why hooks and not documentation
 
@@ -36,6 +37,7 @@ A habit you have to *remember* isn't a habit. Prose in `CLAUDE.md` is advisory a
 - `feature`: claims a ready ticket, implements it in its own worktree, loops against `mise run gate` until green, checks the acceptance criteria, and hands off to `ship`.
 - `repo-align`: pays down formatting and structural-smell debt across a repo, one small PR at a time.
 - `loop-report`: reads Foundry's verb telemetry to show where the gate spends time and whether the loop is converging or thrashing. Read-only.
+- `pr-ci-watch`: loops a PR's CI result back without blocking. Spawns a Herdr monitor pane that watches the checks while the agent keeps working, then reads the verdict and, on failure, fixes, pushes and re-watches until green. The non-blocking form of `ship`'s watch-CI step; falls back to a background task outside Herdr.
 - `foundry-secret`: triages a gitleaks finding, either allowlisting a confirmed false positive or walking through rotate-then-purge for a real leak.
 
 ## Hooks
