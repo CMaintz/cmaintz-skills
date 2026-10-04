@@ -15,8 +15,13 @@ tool=$(printf '%s' "$payload" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*
 
 # Pull the command out of tool_input, tolerating escaped quotes. Match the command
 # ONLY - never the whole payload - so a Bash `description` that merely mentions
-# "gh pr create" on some other command never trips the guard.
-cmd=$(printf '%s' "$payload" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\(\([^"\\]\|\\.\)*\)".*/\1/p' | head -n1)
+# "gh pr create" on some other command never trips the guard. ERE (`-E`) so the
+# alternation is portable: BSD sed (macOS) rejects BRE `\|` and would silently
+# extract nothing, failing the guard open.
+cmd=$(printf '%s' "$payload" | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)".*/\1/p' | head -n1)
+# A multi-line command arrives JSON-escaped (newline as \n); fold \n \r \t back to
+# spaces so a `git push\ngh pr create` second line is still seen as a word boundary.
+cmd=$(printf '%s' "$cmd" | sed 's/\\[nrt]/ /g')
 
 # gh, pr, create as consecutive words. The leading class allows a command start, a
 # chain (;, &&, |), or an env-assignment/flag prefix; the trailing class rejects
