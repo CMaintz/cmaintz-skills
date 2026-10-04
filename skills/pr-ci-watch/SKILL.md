@@ -64,12 +64,15 @@ until the checks pass.
 
 ### 1. Build the watch command
 
-Prefer `foundry-pr-report` when it is on `PATH` or vendored at `./scripts/`. An end
-sentinel is appended so completion is detectable by reading the pane (see step 4).
+Prefer `foundry-pr-report` when it is on `PATH` or vendored at `./scripts/`. Resolve it to
+a single path first and call *that*, so the vendored-only case does not run a bare name the
+pane shell cannot find. An end sentinel is appended so completion is detectable by reading
+the pane (see step 4).
 
 ```bash
-if command -v foundry-pr-report >/dev/null 2>&1 || test -x ./scripts/foundry-pr-report; then
-  watch_cmd="gh pr checks $pr --watch --interval 30; echo '---REPORT---'; foundry-pr-report $pr; echo '---PR-CI-WATCH-DONE---'"
+report=$(command -v foundry-pr-report 2>/dev/null || printf '%s' ./scripts/foundry-pr-report)
+if test -x "$report"; then
+  watch_cmd="gh pr checks $pr --watch --interval 30; echo '---REPORT---'; $report $pr; echo '---PR-CI-WATCH-DONE---'"
 else
   watch_cmd="gh pr checks $pr --watch --interval 30; echo '---PR-CI-WATCH-DONE---'"
 fi
@@ -92,6 +95,15 @@ pane is never blocked.
 
 ```bash
 herdr pane run "$pane" "$watch_cmd"
+```
+
+Confirm the watch actually started, then move on. `pane run` occasionally mangles a sent
+command (a stray bracketed-paste marker, a `command not found`). Read the first few lines
+once; if the echoed command looks corrupted, close this pane and re-spawn from step 2.
+Otherwise the completion signal below would never arrive and you would poll forever.
+
+```bash
+herdr pane read "$pane" --source recent-unwrapped --lines 20
 ```
 
 ### 4. Keep working, then collect the result
