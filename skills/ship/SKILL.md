@@ -80,13 +80,9 @@ If the change **loosens** the gate alongside source — grows a suppression base
 
 ### 7. Watch CI — do NOT assume green
 
-A green local `gate` is necessary, not sufficient. CI runs checks your six-verb gate does **not**: the smells-vs-baseline job, secret scan, SAST (semgrep/CodeQL), dependency review. So after the PR is up, **poll CI and act on the result** — you do not get it automatically, and "I pushed, so it's green" is exactly how a red PR gets left behind:
+A green local `gate` is necessary, not sufficient. CI runs checks your six-verb gate does **not**: the smells-vs-baseline job, secret scan, SAST (semgrep/CodeQL), dependency review. So after the PR is up you **must act on CI's result** - you do not get it automatically, and "I pushed, so it's green" is exactly how a red PR gets left behind.
 
-```bash
-gh pr checks <pr> --watch --fail-fast
-```
-
-If a check fails, read *its* log (`gh run view <run-id> --log-failed`), fix the real cause, push, and watch again — the observe→fix→verify loop, now against CI's extra signal. (This complements `agent-loop`'s "trust the in-loop signal": trust it for the gate *verbs*, which are local == CI — but CI's additional jobs never ran on your machine, so verify them here.) Genuinely baseline-only bot PRs are the only ones that legitimately skip this.
+Do not block the session on the watch. Invoke **`foundry:pr-ci-watch`** to watch CI without blocking - it owns *how* to watch and hands you the verdict, so `ship` does not repeat its mechanics. Once the verdict is in, act on it with the observe->fix->verify loop: read the failing log, fix the real cause, push, and re-watch - the same loop, now against CI's extra signal and still off the critical path. (This complements `agent-loop`'s "trust the in-loop signal": trust it for the gate *verbs*, which are local == CI - but CI's additional jobs never ran on your machine, so verify them here.) Genuinely baseline-only bot PRs are the only ones that legitimately skip this.
 
 ## Stop conditions
 
