@@ -70,6 +70,12 @@ Conventional commits. A body that says **why**, not what — the diff already sa
 
 ### 6. Open the PR
 
+The `guard-pr-create.sh` `PreToolUse` hook denies a raw `gh pr create` so no agent can skip steps 1-5. ship is the sanctioned caller, so it writes a single-use sentinel the hook consumes. Create the sentinel in its **own** Bash call *immediately before* the create (the hook checks for it before the command runs, so it must already exist); recreate it before retrying if the create fails. The path is anchored at the repo root so it matches the hook wherever you are in the tree:
+
+```bash
+mkdir -p "$(git rev-parse --show-toplevel)/.foundry" && touch "$(git rev-parse --show-toplevel)/.foundry/.ship-open-pr"
+```
+
 ```bash
 gh pr create --base <default> --title "<conventional title>" --body-file <file>
 ```

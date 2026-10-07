@@ -1,3 +1,5 @@
 node_modules/
 .DS_Store
 *.log
+# Local Foundry state: telemetry, and ship's single-use gh-pr-create sentinel.
+.foundry/
