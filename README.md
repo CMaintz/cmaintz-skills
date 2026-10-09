@@ -97,6 +97,9 @@ An **opt-in** `Stop` hook that asks [Jev](https://typesafe.ai) whether the turn 
 
 Off by default, and easy to flip: it no-ops unless `JEV_TOOLCALL_TRIAGE` is truthy, on top of needing `JEV_API_KEY` and `node`. Enable it for a session with `export JEV_TOOLCALL_TRIAGE=1` and disable it by unsetting the variable, with no `settings.json` edit needed. Register it as a `Stop` hook alongside the others (order-independent; it only ever exits 0). Silent no-op when off, keyless, or outside a repo, so it is safe to register globally.
 
+### `hooks/leash.sh`
+The Foundry adapter for [Leash](https://github.com/CMaintz/leash), the Jev-powered coach that checks each turn's diff against the un-lintable rules in `CLAUDE.md`/`AGENTS.md`. Leash can install its own hooks, but on a Foundry machine this script drives it instead, and `leash init` notices it in `settings.json` and stays out, so a repo is never double-hooked. Register it three times, passing the Leash subcommand: `UserPromptSubmit` with `snapshot` (timeout 30), `Stop` with `hook` (timeout 90) and `SessionStart` with `session` (timeout 30). It needs the `leash` CLI on PATH (`npm i -g @cmaintz/leash`) and is off unless `LEASH_ENABLED` is truthy, so set that in a repo's mise `[env]` to turn Leash on there. Advisory: it always exits 0, and a Stop block from Leash is a repair request it makes at most once per finding.
+
 ## The advisory Jev layer
 
 `scripts/jev/` is a near-free [Jev](https://typesafe.ai) (TypeSafe System One) layer on
