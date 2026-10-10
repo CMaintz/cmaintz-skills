@@ -1,3 +1,4 @@
 # Normalize line endings to LF in the repo. The pre-push git hook (POSIX sh) must
 # be LF to execute; PowerShell hooks are fine as LF too.
 * text=auto eol=lf
+scripts/jev/vendor/** linguist-vendored
