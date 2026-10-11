@@ -16,7 +16,7 @@ observe->fix->verify loop is the same; only the waiting is moved off the critica
 Two reusable pieces sit underneath it, and the skill degrades gracefully when either is
 missing:
 
-- **`foundry-pr-report`** (ships with this plugin, at `$FOUNDRY_PLUGIN_ROOT/scripts/`) is
+- **`foundry-pr-report`** (ships with this plugin, at `${CLAUDE_PLUGIN_ROOT}/scripts/`) is
   the verdict core: it prints a pass/fail summary plus the failing-step logs, so the pane
   ends holding everything you need.
 - **Herdr** is the thin non-blocking wrapper. Absent (`HERDR_ENV` unset), the skill falls
@@ -63,15 +63,13 @@ until the checks pass.
 
 ### 1. Build the watch command
 
-The verdict core is `$FOUNDRY_PLUGIN_ROOT/scripts/foundry-pr-report`. An end sentinel is
+The verdict core is `${CLAUDE_PLUGIN_ROOT}/scripts/foundry-pr-report`. An end sentinel is
 appended so completion is detectable by reading the pane (see step 4).
 
 ```bash
-report="$FOUNDRY_PLUGIN_ROOT/scripts/foundry-pr-report"
+report="${CLAUDE_PLUGIN_ROOT}/scripts/foundry-pr-report"
 watch_cmd="gh pr checks $pr --watch --interval 30; echo '---REPORT---'; $report $pr; echo '---PR-CI-WATCH-DONE---'"
 ```
-
-If `$FOUNDRY_PLUGIN_ROOT` is empty (its SessionStart hook has not run yet), the reporter is at `<this skill's base directory>/../../scripts/foundry-pr-report` - the base directory is printed when this skill loads.
 
 ### 2. Spawn a non-blocking sibling pane
 

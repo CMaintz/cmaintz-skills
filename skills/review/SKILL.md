@@ -63,7 +63,7 @@ single pass still applies this: review the diff, not your memory of writing it.)
 
    **Optional Jev focus (advisory, opt-in).** If `JEV_API_KEY` is set and the
    breadth is medium or large, run
-   `node "$FOUNDRY_PLUGIN_ROOT/scripts/jev/review.mjs" <base>` for near-free per-file
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/jev/review.mjs" <base>` for near-free per-file
    routing (`{file, review, lens, reason}`). Point the lenses first at the files it
    marks `review: true`, on the lens it names; still give the rest a baseline pass and
    log which were deprioritized. No key, or a small diff, reviews everything as before.

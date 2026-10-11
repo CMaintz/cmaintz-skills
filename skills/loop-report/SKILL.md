@@ -20,11 +20,9 @@ whether work is done (that's the gate).
 The deterministic summariser ships with this plugin. Run it:
 
 ```bash
-python "$FOUNDRY_PLUGIN_ROOT/scripts/foundry-loop-report"            # defaults to .foundry/telemetry.jsonl
-# or a specific log:  python "$FOUNDRY_PLUGIN_ROOT/scripts/foundry-loop-report" path/to/telemetry.jsonl
+python "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report"            # defaults to .foundry/telemetry.jsonl
+# or a specific log:  python "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report" path/to/telemetry.jsonl
 ```
-
-If `$FOUNDRY_PLUGIN_ROOT` is empty (its SessionStart hook has not run yet), the script is at `<this skill's base directory>/../../scripts/foundry-loop-report` - the base directory is printed when this skill loads.
 
 If it says there's no telemetry, the repo either hasn't run the gate since the wrapper
 was wired in, or isn't on Foundry — say which, don't invent numbers.
