@@ -34,10 +34,13 @@ default_base() { gh repo view "${REPO[@]}" --json defaultBranchRef -q .defaultBr
 existing_pr()  { gh pr view "${REPO[@]}" --json number -q .number 2>/dev/null; }
 
 create_pr() { # push the branch, open a draft PR, echo its number
-  local title
+  local title branch
   if [ -n "$TITLE_FILE" ]; then title=$(head -n1 "$TITLE_FILE"); else title=$(git log -1 --format=%s); fi
+  branch=$(git rev-parse --abbrev-ref HEAD)
   git push -u origin HEAD >&2
-  gh pr create "${REPO[@]}" --draft --base "${BASE:-$(default_base)}" \
+  # --head explicitly: gh otherwise infers it from tracking config and can abort with
+  # "you must first push the current branch" even right after a successful push -u.
+  gh pr create "${REPO[@]}" --draft --head "$branch" --base "${BASE:-$(default_base)}" \
     --title "$title" --body-file "$BODY_FILE" > /dev/null
   existing_pr
 }
