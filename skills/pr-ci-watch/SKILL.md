@@ -16,10 +16,9 @@ observe->fix->verify loop is the same; only the waiting is moved off the critica
 Two reusable pieces sit underneath it, and the skill degrades gracefully when either is
 missing:
 
-- **`foundry-pr-report`** (Foundry primitive) is the preferred verdict core: it prints a
-  pass/fail summary plus the failing-step logs, so the pane ends holding everything you
-  need. Absent, the skill uses `gh pr checks` for the verdict and `gh run view
-  --log-failed` for the logs.
+- **`foundry-pr-report`** (ships with this plugin, at `$FOUNDRY_PLUGIN_ROOT/scripts/`) is
+  the verdict core: it prints a pass/fail summary plus the failing-step logs, so the pane
+  ends holding everything you need.
 - **Herdr** is the thin non-blocking wrapper. Absent (`HERDR_ENV` unset), the skill falls
   back to a Claude Code background task, which still gets you the result without blocking,
   just without a visible pane.
@@ -64,18 +63,12 @@ until the checks pass.
 
 ### 1. Build the watch command
 
-Prefer `foundry-pr-report` when it is on `PATH` or vendored at `./scripts/`. Resolve it to
-a single path first and call *that*, so the vendored-only case does not run a bare name the
-pane shell cannot find. An end sentinel is appended so completion is detectable by reading
-the pane (see step 4).
+The verdict core is `$FOUNDRY_PLUGIN_ROOT/scripts/foundry-pr-report`. An end sentinel is
+appended so completion is detectable by reading the pane (see step 4).
 
 ```bash
-report=$(command -v foundry-pr-report 2>/dev/null || printf '%s' ./scripts/foundry-pr-report)
-if test -x "$report"; then
-  watch_cmd="gh pr checks $pr --watch --interval 30; echo '---REPORT---'; $report $pr; echo '---PR-CI-WATCH-DONE---'"
-else
-  watch_cmd="gh pr checks $pr --watch --interval 30; echo '---PR-CI-WATCH-DONE---'"
-fi
+report="$FOUNDRY_PLUGIN_ROOT/scripts/foundry-pr-report"
+watch_cmd="gh pr checks $pr --watch --interval 30; echo '---REPORT---'; $report $pr; echo '---PR-CI-WATCH-DONE---'"
 ```
 
 ### 2. Spawn a non-blocking sibling pane

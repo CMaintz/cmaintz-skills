@@ -28,3 +28,6 @@ jobs:
       # hooks.json is the plugin's hook manifest (JSON, not a script) - skip it.
       - name: shellcheck hooks/
         run: find hooks -type f ! -name '*.json' -print0 | xargs -0 "$RUNNER_TEMP/shellcheck"
+      # Plugin-resident shell scripts the skills invoke. foundry-loop-report is Python.
+      - name: shellcheck scripts/
+        run: "$RUNNER_TEMP/shellcheck" scripts/foundry-pr-report
