@@ -24,6 +24,7 @@ jobs:
             "https://github.com/koalaman/shellcheck/releases/download/v${VERSION}/shellcheck-v${VERSION}.linux.x86_64.tar.xz"
           echo "${SHA256}  $RUNNER_TEMP/shellcheck.tar.xz" | sha256sum -c -
           tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP" --strip-components=1 "shellcheck-v${VERSION}/shellcheck"
-      # Every file in hooks/, including the extensionless git hook (pre-push).
+      # Every shell file in hooks/, including the extensionless git hook (pre-push).
+      # hooks.json is the plugin's hook manifest (JSON, not a script) - skip it.
       - name: shellcheck hooks/
-        run: find hooks -type f -print0 | xargs -0 "$RUNNER_TEMP/shellcheck"
+        run: find hooks -type f ! -name '*.json' -print0 | xargs -0 "$RUNNER_TEMP/shellcheck"
