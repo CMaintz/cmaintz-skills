@@ -43,6 +43,7 @@
     "SessionStart": [
       {
         "hooks": [
+          { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/hooks/export-plugin-root.sh \"${CLAUDE_PLUGIN_ROOT}\"", "timeout": 10 },
           { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/hooks/leash.sh session", "timeout": 30 }
         ]
       }
