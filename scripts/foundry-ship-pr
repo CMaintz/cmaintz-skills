@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# foundry-ship-pr - the one sanctioned path from a committed branch to an open PR.
+#
+# The guard-pr-create hook denies a bare `gh pr create` so no agent skips ship's gate,
+# review and CI watch. This script is the sanctioned caller: a PreToolUse hook fires on
+# the agent's OWN tool call (`bash .../foundry-ship-pr`), never on a subprocess, so the
+# `gh pr create` run in here is unhooked - the script, not a forgeable token, is what
+# carries the sanction, and it folds the non-blocking CI watch in so that value cannot be
+# dropped either. ship launches it in the background; it is idempotent and never prompts.
+#
+#   Usage: foundry-ship-pr --body-file <path> [--title-file <path>] [--base <branch>] [--repo <owner/repo>]
+#     Title defaults to HEAD's subject. Body and title come from FILES, never the command
+#     line, so the PR prose can mention `gh pr create` without tripping the guard on the
+#     agent's own invocation.
+#   Exit:  mirrors foundry-pr-report - 0 all passed, 1 a check failed, 2 still pending or
+#          no checks ever registered.
+set -euo pipefail
+
+BASE=""; BODY_FILE=""; TITLE_FILE=""; REPO=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --base) BASE="$2"; shift 2 ;;
+    --body-file) BODY_FILE="$2"; shift 2 ;;
+    --title-file) TITLE_FILE="$2"; shift 2 ;;
+    --repo) REPO=(--repo "$2"); shift 2 ;;
+    *) echo "foundry-ship-pr: unknown arg: $1" >&2; exit 2 ;;
+  esac
+done
+[ -n "$BODY_FILE" ] || { echo "foundry-ship-pr: --body-file is required (never interactive)" >&2; exit 2; }
+
+here=$(cd "$(dirname "$0")" && pwd)
+
+default_base() { gh repo view "${REPO[@]}" --json defaultBranchRef -q .defaultBranchRef.name; }
+existing_pr()  { gh pr view "${REPO[@]}" --json number -q .number 2>/dev/null; }
+
+create_pr() { # push the branch, open a draft PR, echo its number
+  local title
+  if [ -n "$TITLE_FILE" ]; then title=$(head -n1 "$TITLE_FILE"); else title=$(git log -1 --format=%s); fi
+  git push -u origin HEAD >&2
+  gh pr create "${REPO[@]}" --draft --base "${BASE:-$(default_base)}" \
+    --title "$title" --body-file "$BODY_FILE" > /dev/null
+  existing_pr
+}
+
+wait_for_checks() { # a fresh PR has no checks yet; poll until one appears or give up (~5m)
+  local pr="$1" n
+  for _ in $(seq 1 20); do
+    n=$(gh pr checks "$pr" "${REPO[@]}" --json name -q 'length' 2> /dev/null || echo 0)
+    [ "${n:-0}" -gt 0 ] && return 0
+    sleep 15
+  done
+  return 1
+}
+
+pr=$(existing_pr || true)
+[ -n "$pr" ] || pr=$(create_pr)
+url=$(gh pr view "$pr" "${REPO[@]}" --json url -q .url)
+root=$(git rev-parse --show-toplevel)
+mkdir -p "$root/.foundry" && printf '%s\n' "$url" > "$root/.foundry/pr-url"
+echo "foundry-ship-pr: PR $url"
+
+if ! wait_for_checks "$pr"; then
+  echo "foundry-ship-pr: no checks registered after 5m - this branch may have no CI" >&2
+  exit 2
+fi
+gh pr checks "$pr" "${REPO[@]}" --watch --interval 30 || true
+
+rc=0
+"$here/foundry-pr-report" "$pr" "${REPO[@]}" || rc=$?
+# CLAUDE.md: a PR opens as a draft and becomes ready only once CI is green.
+[ "$rc" -eq 0 ] && gh pr ready "$pr" "${REPO[@]}" 2> /dev/null || true
+exit "$rc"

@@ -68,27 +68,25 @@ Invoke **`foundry:review`**. It runs three fresh-context lenses — correctness,
 
 Conventional commits. A body that says **why**, not what — the diff already says what. Note any deliberate snooze from step 2 and its justification.
 
-### 6. Open the PR
+### 6. Open the PR and watch CI - in one non-blocking step
 
-The `guard-pr-create.sh` `PreToolUse` hook denies a raw `gh pr create` so no agent can skip steps 1-5. ship is the sanctioned caller, so it writes a single-use sentinel the hook consumes. Create the sentinel in its **own** Bash call *immediately before* the create (the hook checks for it before the command runs, so it must already exist); recreate it before retrying if the create fails. The path is anchored at the repo root so it matches the hook wherever you are in the tree:
+Write the PR body to a file first: what changed, why, anything a reviewer should look at, and any baseline movement. It goes in a **file**, never on the command line, because the `guard-pr-create.sh` hook denies a raw `gh pr create` (so no agent skips steps 1-5) and prose that mentions `gh pr create` would otherwise trip it.
 
-```bash
-mkdir -p "$(git rev-parse --show-toplevel)/.foundry" && touch "$(git rev-parse --show-toplevel)/.foundry/.ship-open-pr"
-```
+The sanctioned path is **`foundry-ship-pr`**: it pushes the branch, opens a draft PR, then watches CI and marks the PR ready once green. It runs `gh pr create` as a subprocess, which the hook never sees, so it is the one way through. Launch it **in the background** (Bash tool `run_in_background: true`, or a Herdr pane when `HERDR_ENV=1`) so the session is not blocked while CI runs:
 
 ```bash
-gh pr create --base <default> --title "<conventional title>" --body-file <file>
+"$FOUNDRY_PLUGIN_ROOT/scripts/foundry-ship-pr" --body-file <file> [--title-file <file>]
 ```
 
-The body should carry: what changed, why, anything a reviewer should look at, and any baseline movement.
+The PR URL lands in `.foundry/pr-url` within seconds of launch; read it there to reference the PR while CI runs. The script's exit mirrors the CI verdict (0 passed, 1 failed, 2 pending/no-checks).
 
-If the change **loosens** the gate alongside source — grows a suppression baseline, lowers a threshold, edits a lint rule — the PR needs the `ruleset-change` label or `ruleset-guard` will fail it. Tightening does not: a baseline that only shrank because `mise run fix` pruned it ships with the source fix, no label needed. That is the rule working — do not route around it by splitting the commit dishonestly.
+If the change **loosens** the gate alongside source (grows a suppression baseline, lowers a threshold, edits a lint rule) the PR needs the `ruleset-change` label or `ruleset-guard` will fail it. Tightening does not: a baseline that only shrank because `mise run fix` pruned it ships with the source fix, no label needed. That is the rule working - do not route around it by splitting the commit dishonestly.
 
-### 7. Watch CI — do NOT assume green
+### 7. Act on the verdict - do NOT assume green
 
-A green local `gate` is necessary, not sufficient. CI runs checks your six-verb gate does **not**: the smells-vs-baseline job, secret scan, SAST (semgrep/CodeQL), dependency review. So after the PR is up you **must act on CI's result** - you do not get it automatically, and "I pushed, so it's green" is exactly how a red PR gets left behind.
+A green local `gate` is necessary, not sufficient. CI runs checks your six-verb gate does **not**: the smells-vs-baseline job, secret scan, SAST (semgrep/CodeQL), dependency review. So when the background `foundry-ship-pr` returns, you **must act on its result** - "I pushed, so it's green" is exactly how a red PR gets left behind.
 
-Do not block the session on the watch. Invoke **`foundry:pr-ci-watch`** to watch CI without blocking - it owns *how* to watch and hands you the verdict, so `ship` does not repeat its mechanics. Once the verdict is in, act on it with the observe->fix->verify loop: read the failing log, fix the real cause, push, and re-watch - the same loop, now against CI's extra signal and still off the critical path. (This complements `agent-loop`'s "trust the in-loop signal": trust it for the gate *verbs*, which are local == CI - but CI's additional jobs never ran on your machine, so verify them here.) Genuinely baseline-only bot PRs are the only ones that legitimately skip this.
+On failure, take the failing-step logs it printed and run the observe->fix->verify loop: fix the real cause, commit, and re-launch `foundry-ship-pr` (idempotent - it finds the existing PR and re-watches). For a finer-grained or Herdr-pane watch, **`foundry:pr-ci-watch`** owns that; `foundry-ship-pr` is the default because it is the create path too. Genuinely baseline-only bot PRs are the only ones that legitimately skip the watch.
 
 ## Stop conditions
 
