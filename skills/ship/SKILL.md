@@ -78,6 +78,8 @@ The sanctioned path is **`foundry-ship-pr`**: it pushes the branch, opens a draf
 "$FOUNDRY_PLUGIN_ROOT/scripts/foundry-ship-pr" --body-file <file> [--title-file <file>]
 ```
 
+If `$FOUNDRY_PLUGIN_ROOT` is empty (the SessionStart hook that sets it has not run yet in a brand-new session), the script is at `<this skill's base directory>/../../scripts/foundry-ship-pr` - the base directory is printed when this skill loads.
+
 The PR URL lands in `.foundry/pr-url` within seconds of launch; read it there to reference the PR while CI runs. The script's exit mirrors the CI verdict (0 passed, 1 failed, 2 pending/no-checks).
 
 If the change **loosens** the gate alongside source (grows a suppression baseline, lowers a threshold, edits a lint rule) the PR needs the `ruleset-change` label or `ruleset-guard` will fail it. Tightening does not: a baseline that only shrank because `mise run fix` pruned it ships with the source fix, no label needed. That is the rule working - do not route around it by splitting the commit dishonestly.

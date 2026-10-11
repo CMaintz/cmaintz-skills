@@ -71,6 +71,8 @@ report="$FOUNDRY_PLUGIN_ROOT/scripts/foundry-pr-report"
 watch_cmd="gh pr checks $pr --watch --interval 30; echo '---REPORT---'; $report $pr; echo '---PR-CI-WATCH-DONE---'"
 ```
 
+If `$FOUNDRY_PLUGIN_ROOT` is empty (its SessionStart hook has not run yet), the reporter is at `<this skill's base directory>/../../scripts/foundry-pr-report` - the base directory is printed when this skill loads.
+
 ### 2. Spawn a non-blocking sibling pane
 
 Split to the right, keep the user's focus (`--no-focus`), and read the new pane id out of

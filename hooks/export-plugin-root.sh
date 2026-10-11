@@ -10,5 +10,8 @@ set -u
 
 root="${1:-}"
 [ -n "$root" ] || exit 0
+# On Windows ${CLAUDE_PLUGIN_ROOT} substitutes to a backslash path (C:\Users\...); written
+# raw to the env file, sourcing it would collapse the escapes. Forward slashes survive.
+command -v cygpath > /dev/null 2>&1 && root=$(cygpath -u "$root" 2> /dev/null || printf '%s' "$root")
 [ -n "${CLAUDE_ENV_FILE:-}" ] || exit 0
 printf 'FOUNDRY_PLUGIN_ROOT=%s\n' "$root" >> "$CLAUDE_ENV_FILE"

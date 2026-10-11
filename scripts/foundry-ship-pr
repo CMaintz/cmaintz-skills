@@ -63,7 +63,8 @@ mkdir -p "$root/.foundry" && printf '%s\n' "$url" > "$root/.foundry/pr-url"
 echo "foundry-ship-pr: PR $url"
 
 if ! wait_for_checks "$pr"; then
-  echo "foundry-ship-pr: no checks registered after 5m - this branch may have no CI" >&2
+  echo "foundry-ship-pr: no checks registered after 5m - this branch may have no CI, or a" >&2
+  echo "  workflow failed to parse (a 0s run is invisible to gh pr checks; gh run list shows it)" >&2
   exit 2
 fi
 gh pr checks "$pr" "${REPO[@]}" --watch --interval 30 || true
