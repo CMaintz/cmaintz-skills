@@ -17,12 +17,11 @@ whether work is done (that's the gate).
 
 ### 1. Summarise the local telemetry
 
-The deterministic summariser is vendored at `scripts/foundry-loop-report` (foundry-init
-installs it). Run it:
+The deterministic summariser ships with this plugin. Run it:
 
 ```bash
-python scripts/foundry-loop-report            # defaults to .foundry/telemetry.jsonl
-# or a specific log:  python scripts/foundry-loop-report path/to/telemetry.jsonl
+python "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report"            # defaults to .foundry/telemetry.jsonl
+# or a specific log:  python "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report" path/to/telemetry.jsonl
 ```
 
 If it says there's no telemetry, the repo either hasn't run the gate since the wrapper
