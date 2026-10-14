@@ -31,6 +31,16 @@ dirs=""
 for d in */; do [ -d "${d}.habit-hooks" ] && dirs="$dirs ${d%/}"; done
 [ -n "$dirs" ] || exit 0   # nothing opted in here — silent, safe to install globally
 
+# Claude Code's EnterWorktree puts full repo copies under .claude/worktrees/. Unignored,
+# --branch counts them as untracked branch files and reports every file as duplicated.
+# Exclude them clone-locally: info/exclude is never committed, and although all worktrees
+# share it, the pattern is anchored to each one's own root so its own files stay checked.
+# foundry-init gitignores the path; this covers repos onboarded before it did.
+if [ -d .claude/worktrees ] && ! git check-ignore -q .claude/worktrees 2>/dev/null; then
+  gd=$(git rev-parse --git-common-dir 2>/dev/null) && mkdir -p "$gd/info" &&
+    printf '\n%s\n' '.claude/worktrees/' >> "$gd/info/exclude"
+fi
+
 # A repo opted in (has .habit-hooks/) but the tool isn't installed: DON'T fail green
 # silently — that's the exact trap this system exists to avoid. Warn loudly (non-
 # blocking) with how to fix, then allow the stop; we can't run the check from here.

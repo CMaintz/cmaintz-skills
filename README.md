@@ -49,6 +49,8 @@ A `Stop` hook that runs [habit-hooks](https://github.com/habit-hooks/habit-hooks
 
 It's a `Stop` hook rather than `PostToolUse` on purpose: habit-hooks takes ~25s cold (~6s warm), far too slow to run after every edit. That also matches habit-hooks' own advice to *"run it before considering work complete."*
 
+If the repo has a `.claude/worktrees/` directory (Claude Code's `EnterWorktree`) that isn't ignored, the hook adds it to the clone's `.git/info/exclude` first. Otherwise `habit-hooks --branch` scans those full repo copies as untracked branch files and reports every file as duplicated. Nothing in the repo changes.
+
 ### `hooks/auto-format.sh`
 A `PostToolUse` hook (matching `Edit|Write|MultiEdit`) that formats the one file just written, so formatting is sorted before CI ever sees it. The gate's format check then almost never fails and the agent doesn't burn a round-trip on a whitespace nit. It runs `prettier --write` on that file (falling back to `eslint --fix`) and is sub-second.
 
