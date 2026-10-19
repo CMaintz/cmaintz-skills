@@ -1,0 +1,31 @@
+#!/bin/sh
+# Foundry pre-commit git hook - formats staged files with the repo's own prettier, so a
+# commit never carries formatting drift for `lint` to reject at push or for `mise run fix`
+# to rewrite later on an unrelated branch. The lint check stays the guarantee; this just
+# means you rarely see it fail.
+#
+# Install (one of):
+#   cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+#   # or, to version it: git config core.hooksPath .githooks  (and put this there)
+#
+# No-op without a local node_modules/.bin/prettier, so it's safe in any stack.
+# Bypass once with: git commit --no-verify
+[ -n "${CI:-}" ] && exit 0
+cd "$(git rev-parse --show-toplevel)" || exit 0
+
+bin=node_modules/.bin/prettier
+if [ -x "$bin" ]; then prettier="$bin"
+elif [ -f "$bin.cmd" ]; then prettier="$bin.cmd"
+else exit 0
+fi
+
+git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r f; do
+  # Formatting a file with unstaged hunks and re-adding it would commit those hunks too.
+  # Leave it as staged; `lint` catches any drift at push.
+  if ! git diff --quiet -- "$f"; then
+    echo "pre-commit: not formatting $f (it has unstaged changes)" >&2
+    continue
+  fi
+  "$prettier" --write --ignore-unknown --log-level warn -- "$f" >/dev/null && git add -- "$f"
+done
+exit 0

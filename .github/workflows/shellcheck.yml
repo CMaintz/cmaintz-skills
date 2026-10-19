@@ -32,3 +32,7 @@ jobs:
       - name: shellcheck scripts/
         run: |
           "$RUNNER_TEMP/shellcheck" scripts/foundry-pr-report scripts/foundry-ship-pr
+      - name: shellcheck tests/
+        run: find tests -type f -name '*.sh' -print0 | xargs -0 "$RUNNER_TEMP/shellcheck"
+      - name: Test the pre-commit hook
+        run: bash tests/pre-commit.test.sh

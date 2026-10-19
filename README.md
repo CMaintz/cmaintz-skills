@@ -86,6 +86,9 @@ A `Stop` hook that runs `mise run typecheck` once per turn, but only when the tu
 ### `hooks/pre-push`
 A plain git `pre-push` hook (POSIX sh, not a Claude hook) that runs `mise run gate` before a push and aborts if it fails. That way a human doing `git push` gets the same gate the agent's `/ship` enforces. It does nothing where there's no `mise.toml`. Install with `cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (or version it via `core.hooksPath`), and skip it once with `git push --no-verify`.
 
+### `hooks/pre-commit`
+A plain git `pre-commit` hook (POSIX sh, not a Claude hook) that formats staged files with the repo's own `node_modules/.bin/prettier` and re-stages them, so commits don't carry formatting drift. A staged file that also has unstaged changes is skipped with a note, because formatting and re-adding it would commit the unstaged hunks too; `lint`'s `prettier --check` catches it at push. It does nothing without a local prettier, so it's safe in any stack. Install it like `pre-push`, and skip it once with `git commit --no-verify`.
+
 ### `hooks/guard-generated-files.sh`
 A `PreToolUse` hook (matching `Edit|Write|MultiEdit`) that blocks an agent from hand-editing tool-generated baselines (`snooze.json` and `eslint-suppressions.json`). It exits 2 with a message pointing at the right way to regenerate them (bootstrap's `habit-snooze --prune`, or `mise run fix`). The repo-align skill already *says* not to hand-edit these, but a skill is advisory and fades with context; a `PreToolUse` block isn't. It only fires on the agent's own edits, since CI and bootstrap regenerate these files outside the agent's tools.
 
