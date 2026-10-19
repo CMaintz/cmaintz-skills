@@ -5,6 +5,8 @@
 set -euo pipefail
 
 HOOK="$(cd "$(dirname "$0")/.." && pwd)/hooks/pre-commit"
+# The hook skips itself under CI; this test exercises it there too.
+unset CI
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
