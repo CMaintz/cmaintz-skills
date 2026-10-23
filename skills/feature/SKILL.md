@@ -59,6 +59,11 @@ habit-hooks      # structural smells; its output is coaching, a highest-priority
 mise run gate    # the oracle — must exit 0
 ```
 
+`habit-hooks` is opt-in per repo, by the same rule `hooks/habit-hooks-guard.sh` uses: a `.habit-hooks/` directory at the repo root or in an immediate subdirectory.
+
+- **No `.habit-hooks/` anywhere** → skip `habit-hooks` and count it as no smells. Say so once, not every cycle.
+- **`.habit-hooks/` present but `habit-hooks` is not on `PATH`** (or exits with "command not found") → stop with an error. A broken install must never pass as clean; `mise install` in the worktree is the usual fix, and if that doesn't provide it, [escalate](#escalation).
+
 - **Green gate and no smells** → go to step 4.
 - **Otherwise** → act on the `habit-hooks` coaching and the failing verb's output, **fix the cause**, and re-run from a clean tree.
 
@@ -112,5 +117,6 @@ A GitHub Issue, normalized to one object. The authoritative fields — intent, t
 Stop and ask the user, rather than pressing on, if:
 
 - the repo is not onboarded to Foundry (no `gate` verb)
+- the repo has `.habit-hooks/` but the `habit-hooks` command is missing
 - no claimable ticket exists (puller mode)
 - the change needs a ruleset change to be correct — that is a separate PR with the `ruleset-change` label
