@@ -5,7 +5,7 @@
 #   Usage: tests/habit-hooks-guard.test.sh
 set -euo pipefail
 
-HOOK="$(cd "$(dirname "$0")/.." && pwd)/hooks/habit-hooks-guard.sh"
+HOOK="$(cd "$(dirname "$0")/../plugins/foundry" && pwd)/hooks/habit-hooks-guard.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 

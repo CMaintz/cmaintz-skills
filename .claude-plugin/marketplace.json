@@ -9,7 +9,7 @@
     {
       "name": "foundry",
       "displayName": "Foundry skills",
-      "source": "./",
+      "source": "./plugins/foundry",
       "description": "Pre-PR review and structural-smell habits built on the Foundry six-verb gate: one rule set enforced in-loop, pre-push and in CI.",
       "category": "engineering",
       "keywords": [

@@ -14,11 +14,11 @@ run = "true"
 
 [tasks.lint]
 description = "shellcheck every shell file the plugin ships or tests with"
-# Every file in hooks/, including the extensionless git hook (pre-push). hooks.json is
+# Every file in the plugin's hooks/, including the extensionless git hook (pre-push). hooks.json is
 # the plugin's hook manifest, not a script. foundry-loop-report is Python, so it is left out.
 run = [
-    "find hooks -type f ! -name '*.json' -print0 | xargs -0 shellcheck",
-    "shellcheck scripts/foundry-pr-report scripts/foundry-ship-pr",
+    "find plugins/foundry/hooks -type f ! -name '*.json' -print0 | xargs -0 shellcheck",
+    "shellcheck plugins/foundry/scripts/foundry-pr-report plugins/foundry/scripts/foundry-ship-pr",
     "find tests -type f -name '*.sh' -print0 | xargs -0 shellcheck",
 ]
 
@@ -31,7 +31,7 @@ run = "true"
 description = "Node unit tests and the pre-commit hook test"
 # Quoted so node expands the glob, not the shell (bash has no ** without globstar).
 run = [
-    "node --test \"scripts/**/*.test.mjs\"",
+    "node --test \"plugins/foundry/scripts/**/*.test.mjs\"",
     "bash tests/pre-commit.test.sh",
     "bash tests/habit-hooks-guard.test.sh",
 ]
