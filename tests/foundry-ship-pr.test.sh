@@ -63,7 +63,7 @@ ship() {
 (
   setup 2; ship
   [ "$(git -C "$REMOTE" rev-parse "refs/heads/$BRANCH")" = "$(git rev-parse HEAD)" ] \
-    || fail "the new commit was not pushed to the existing PR's branch"
+    || fail "the new commit was not pushed to the existing PR's branch (exit $rc): $(cat "$work/out.log")"
   [ "$rc" -eq 1 ] || fail "expected the new commit's failing check (exit 1), got exit $rc: $(cat "$work/out.log")"
   [ ! -e "$STATE/ready" ] || fail "marked the PR ready on a stale green"
   echo "ok: pushes to an existing PR and judges the pushed commit's checks"
