@@ -49,6 +49,14 @@ git worktree add -b feat/<slug>-<n> ../_wt/<slug>-<n> origin/main
 
 Work only in that worktree so the main checkout stays untouched. Pinned tools (mise tools, the habit-hooks venv, PMD) are installed once per machine and shared, but a new worktree has neither mise trust nor the project's own dependencies. Run `mise trust`, `mise install`, then the repo's dependency install (`npm ci` for Node); `mise install` does not create `node_modules`, and without it the TypeScript smell sensors report their tools as missing instead of checking anything.
 
+**Read the codemap slices, when the repo has one.** If `docs/codemap/INDEX.md` exists, read every slice whose citations overlap the ticket's Pointers (the same file, a pointer under a cited directory, or a cited file under a pointer directory) before implementing, so the change follows the flows the map traced rather than rediscovering them. The citation grammar is in the `codemap` skill's `FORMAT.md`. For each slice read, check whether its cited files changed since its stamped `sha:`, the same way `codemap refresh` does:
+
+```bash
+git diff --name-status <sha> HEAD
+```
+
+If a cited file changed, or the `sha` is unreachable, warn that the slice may be stale and check its claims against the code before relying on them; the code wins where they disagree. Do not edit the codemap in this change: refreshing it is `codemap refresh`'s job, in its own PR. Without `docs/codemap/INDEX.md`, skip this and do not suggest generating one.
+
 ### 3. Inner loop — drive the gate green (bounded)
 
 Implement toward the acceptance checklist and the Definition of Done, then loop. Each cycle runs the same three commands `ship` re-runs authoritatively, so a clean cycle here means `ship` will not bounce it back:

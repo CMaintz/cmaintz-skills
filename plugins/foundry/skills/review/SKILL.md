@@ -60,6 +60,10 @@ single pass still applies this: review the diff, not your memory of writing it.)
      doesn't re-litigate what tooling already enforces
    - if a repo-local `build-project-review` skill exists, load its criteria into
      the Standards lens
+   - if `docs/codemap/INDEX.md` exists, the domain slices (`kind: domain`, not the
+     lens files) whose citations cover the diff's files (the same file, or a file
+     under a cited directory), for the Spec lens.
+     Without it, skip this and do not suggest generating one
 
    **Optional Jev focus (advisory, opt-in).** If `JEV_API_KEY` is set and the
    breadth is medium or large, run
@@ -84,10 +88,17 @@ single pass still applies this: review the diff, not your memory of writing it.)
      follow-up ticket filed) is listed as not checkable from the diff, not as
      unmet: `feature`'s verify step owns it. A DoD of
      `None beyond the acceptance criteria.` adds nothing to check.
+     With the codemap slices, raise a non-blocking `question:` for each slice
+     whose cited files the diff touches but that the ticket never mentions: no
+     Pointer overlaps the slice's citations or `paths:`, and the Scope boundaries
+     don't name it. The change may be sprawling into a domain the ticket didn't
+     plan for. Report it at every effort, since it is cheap to
+     answer and the effort threshold would otherwise drop it at `low`.
 
 4. **Merge.** Dedupe overlaps across lenses. **Drop anything the deterministic
    gate already catches** (lint, types, tests, coverage). Assign severity, then
-   apply the effort threshold — drop everything below it.
+   apply the effort threshold: drop everything below it, except the Spec lens's
+   codemap `question:` findings, which are reported at every effort.
 
 5. **Report**, grouped by lens, most severe first, each as
    `file:line — what — why`. State the breadth and effort used. Say explicitly

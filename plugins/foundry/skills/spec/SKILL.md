@@ -38,6 +38,21 @@ Interview the user. Don't jump to a solution; understand the problem first. Ask 
 Ask **one focused round at a time**; reflect back what you heard. Stop when you can state
 the change in a sentence and list what would prove it done.
 
+**Ground it in the codemap, when the repo has one.** If `docs/codemap/INDEX.md` exists,
+find the slice or slices that own the change from its `## Domains` table and each slice's
+`paths:` frontmatter, and read them (the layout and citation grammar are in the `codemap`
+skill's `FORMAT.md`). Then:
+
+- **Pointers** come from those slices' citations (`path` or `path#Symbol`), so the agent
+  starts from code the map has checked, not from a guess.
+- **Edge-case questions** come from the side effects of the traced flows: the side-effect
+  steps under each slice's `## Happy paths` and the `## Key cross-domain flows` in the
+  INDEX. Ask what should happen when each one fails, repeats or races.
+- **The scope-out** names the neighbouring slices from the Domains table that the change
+  does not touch, so sprawl into them is visibly out of bounds.
+
+Without `docs/codemap/INDEX.md`, skip this and do not suggest generating one.
+
 ### 2. Draft to the schema
 
 Shape the conversation into the [ticket schema](#the-schema). The load-bearing move is the
@@ -66,7 +81,10 @@ Self-check the draft, and fix what fails:
   enforces on every change ("the gate is green", "tests pass", "it was reviewed", "CI
   passes", "a PR is open"). Drop those; rewrite or drop anything that can't be checked.
 - Scope-out is present and specific.
-- Pointers name real files/modules the agent should start from.
+- Every pointer path exists in the working tree: check each with `test -e <path>`, on the
+  part before any `#Symbol`. Fix or drop any that doesn't; a dead pointer sends the agent
+  hunting for code that isn't there. Pointers that are not paths (a dependency on another
+  issue, a doc URL) are left alone.
 - The whole thing is one cohesive change, sized to a single PR.
 
 ### 4. Confirm with the user
