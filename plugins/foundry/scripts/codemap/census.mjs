@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Deterministic inventory of a repo for the codemap skill: manifests, entrypoints, schemas,
 // env vars, churn, co-change and a proposed slice plan, as JSON on stdout. Facts only, no
-// model calls, so two runs on the same working tree print the same output on any machine.
-// The output shape is documented in README.md next to this script.
+// model calls: the same working tree and the same --since print the same output. The
+// default --since is relative to now, so pass an absolute date for runs that must match
+// later. The output shape is documented in README.md next to this script.
 //
 //   node census.mjs [--since "12 months ago"] [--threshold 0.5] [--min-shared 3]
 
