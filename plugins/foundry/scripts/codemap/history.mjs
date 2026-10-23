@@ -13,6 +13,15 @@ const GENERIC_NAMES = new Set([
   'extensions', 'helpers', 'interfaces', 'internal', 'lib', 'migrations', 'models', 'properties',
   'shared', 'styles', 'types', 'util', 'utils',
 ]);
+// Layer and container folders. A layered tree and a feature-folder tree have the same shape
+// (src/Domain/Orders against src/orders/services), so only these names tell them apart: a
+// repeated name regroups only under layers, never under features.
+const LAYER_NAMES = new Set([
+  'api', 'application', 'core', 'data', 'domain', 'features', 'infrastructure', 'modules',
+  'persistence', 'presentation', 'shared', 'ui', 'web',
+]);
+// A .NET project folder names its layer after the last dot: DevInsight.Application.
+const layerOf = (key) => key.split('/').at(-1).split('.').at(-1).toLowerCase();
 
 /** Commits in the window, each as the list of files it touched that still exist. */
 export function commitsSince(root, since, existing) {
@@ -135,7 +144,7 @@ function sliceKeys(files) {
 
 /**
  * Regroups a layered layout by domain: a non-generic subdirectory name found directly under
- * two or more slice keys becomes one slice named after it, joined by any key whose own last
+ * two or more layer keys becomes one slice named after it, joined by any key whose own last
  * segment matches. Subdirectories are read from each key's files, so a flat root never counts
  * the keys beside it as its own.
  */
@@ -143,7 +152,7 @@ function regroupByName(keyOf) {
   const under = new Map();
   for (const [file, key] of keyOf) {
     const rest = file.slice(key.length + 1).split('/');
-    if (rest.length < 2) continue;
+    if (rest.length < 2 || !LAYER_NAMES.has(layerOf(key))) continue;
     const name = rest[0].toLowerCase();
     if (!GENERIC_NAMES.has(name)) under.set(name, new Set([...(under.get(name) ?? []), key]));
   }
