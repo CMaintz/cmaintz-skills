@@ -235,6 +235,58 @@ test('schemas and env vars are detected from their conventional sources', () => 
   );
 });
 
+test('env vars are read from shell and Python scripts, compose files and Dockerfiles', () => {
+  const root = fixture([{
+    // POLL is assigned here and FILE is a loop variable, so neither comes from the environment.
+    'scripts/ship.sh': [
+      'root=$(pwd)',
+      'POLL="${SHIP_POLL_SECONDS:-15}"',
+      'BASE=""; BODY=""',
+      'case "$1" in --body) BODY="$2" ;; esac',
+      '# $COMMENTED is documentation, not a read',
+      '[ -n "$CI" ] && exit 0',
+      'echo "$HOME $root $POLL $BASE $BODY $1"',
+      'for FILE in *; do :; done',
+      "last=$(echo a b | awk '{print $NF}')",
+    ].join('\n'),
+    'bin/report': '#!/usr/bin/env python3\nimport os\np = os.environ.get("REPORT_PATH") or os.getenv(\'REPORT_DIR\')\nk = os.environ["TOKEN"]\n',
+    'bin/notes': 'set $PRICE later\n',
+    'docker-compose.yml': [
+      'services:',
+      '  api:',
+      '    environment:',
+      '      ConnectionStrings__Db: "Host=db"',
+      '      Frontend__Url: ${FRONTEND_URL}',
+      '    ports:',
+      '      - "8080:8080"',
+      '  worker:',
+      '    environment:',
+      '      - QUEUE_NAME=jobs',
+      '      - "QUOTED_NAME=1"',
+    ].join('\n'),
+    Dockerfile: 'FROM node\nARG BUILD_ENV\nENV PORT=8080 \\\n    NODE_ENV=production\nENV LEGACY_NAME value\n',
+  }]);
+
+  const { envVars } = census(root);
+
+  assert.deepEqual(envVars.map((v) => `${v.name} ${v.files.join(',')}`), [
+    'BUILD_ENV Dockerfile',
+    'CI scripts/ship.sh',
+    'ConnectionStrings__Db docker-compose.yml',
+    'FRONTEND_URL docker-compose.yml',
+    'Frontend__Url docker-compose.yml',
+    'LEGACY_NAME Dockerfile',
+    'NODE_ENV Dockerfile',
+    'PORT Dockerfile',
+    'QUEUE_NAME docker-compose.yml',
+    'QUOTED_NAME docker-compose.yml',
+    'REPORT_DIR bin/report',
+    'REPORT_PATH bin/report',
+    'SHIP_POLL_SECONDS scripts/ship.sh',
+    'TOKEN bin/report',
+  ]);
+});
+
 test('churn counts only commits inside the --since window', () => {
   const root = fixture([
     { 'a.js': '1', date: '2020-01-01T00:00:00Z' },

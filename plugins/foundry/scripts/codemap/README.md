@@ -46,8 +46,12 @@ files marked `linguist-vendored` in `.gitattributes`, and anything under a `vend
   // *.sql, schema.prisma, and anything under a migrations/ or Migrations/ directory. Sorted.
   "schemas": ["db/Migrations/20260101_Init.cs", "prisma/schema.prisma"],
 
-  // Names from .env.example, process.env.X / process.env['X'], and
-  // Environment.GetEnvironmentVariable("X"), with the files that mention each. Sorted by name.
+  // Names from .env.example, process.env.X / process.env['X'],
+  // Environment.GetEnvironmentVariable("X"), Python's os.environ / os.getenv, upper-case
+  // variables a shell script reads but never sets (common shell variables like HOME left
+  // out; extensionless scripts are recognised by their shebang), compose `environment:`
+  // keys and ${X} interpolations, and Dockerfile ARG and ENV names. With the files that
+  // mention each. Sorted by name.
   "envVars": [{ "name": "PORT", "files": [".env.example", "src/server.ts"] }],
 
   // Non-merge commits per file inside --since, for files that still exist.
@@ -119,7 +123,9 @@ Detection is regex-based and errs towards false negatives:
 Each ecosystem's detection lives in its own file under `detectors/`, exporting one or more
 detectors of the shape `{ matches(path), entrypoints(path, text), envPattern }` (`js.mjs`
 exports two: source files and `package.json`). `envPattern` is a global regex whose first
-non-empty group is an env var name, or `null`. The first detector whose `matches` accepts a
+non-empty group is an env var name, or `null`. When a regex cannot say it (a shell variable
+counts only if the script never sets it), export `envVars(path, text)` returning the names
+instead. The first detector whose `matches` accepts a
 file handles it, so claim files by a name or extension no other detector uses.
 
 To add one:
