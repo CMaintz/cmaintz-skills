@@ -62,10 +62,10 @@ fail=0; report=""
 for d in $dirs; do
   hh=$(hh_for "$d")
   # A repo opted in (has .habit-hooks/) but the tool isn't installed: DON'T fail green
-  # silently — that's the exact trap this system exists to avoid. Warn loudly (non-
+  # silently - that's the exact trap this system exists to avoid. Warn loudly (non-
   # blocking) with how to fix, then allow the stop; we can't run the check from here.
   if [ "$hh" = habit-hooks ] && ! command -v habit-hooks >/dev/null 2>&1; then
-    printf '%s\n' "habit-hooks-guard: WARNING — this repo has .habit-hooks/ but 'habit-hooks' is not on PATH, so the in-loop structural-smell check did NOT run (CI still enforces it). Install it so local mirrors CI: pip install --user habit-hooks <lang-plugin> (+ standalone PMD for Java), or add its bin dir to PATH." >&2
+    printf '%s\n' "habit-hooks-guard: WARNING - this repo has .habit-hooks/ but 'habit-hooks' is not on PATH, so the in-loop structural-smell check did NOT run (CI still enforces it). Install it so local mirrors CI: pip install --user habit-hooks <lang-plugin> (+ standalone PMD for Java), or add its bin dir to PATH." >&2
     exit 0
   fi
   out=$(cd "$d" && "$hh" --branch 2>&1); rc=$?
