@@ -1,10 +1,37 @@
 # cmaintz-skills
 
-The agent half of [Foundry](https://github.com/CMaintz/foundry): skills and hooks that turn a deterministic engineering gate into habits an agent actually keeps.
+The agent half of [Foundry](https://github.com/CMaintz/foundry): a Claude Code plugin whose skills and hooks drive an agent from an idea to a reviewed pull request, and keep it honest against a deterministic gate on the way.
 
-![reflex hooks format + coach as an agent edits, then /foundry:ship drives the gate to a PR](docs/demo.svg)
+![The cmaintz-skills loop: /foundry:spec turns an idea into a ticket, /foundry:feature claims it, mise run gate loops until green, /foundry:ship reviews and commits, a draft PR is watched in CI, and /learn routes the lessons. /foundry:codemap gives spec, feature and review a cited map of the repo. Hooks format, check smells and types, and force PRs through ship on every turn.](docs/readme-visual.png)
 
-The CI half lives in [foundry](https://github.com/CMaintz/foundry). The seam between them is [CONTRACT.md](./CONTRACT.md), copied verbatim into both.
+## The method
+
+An agent is fast and confident, and neither makes it right. These skills and hooks rest on a few beliefs about how to get trustworthy work out of one anyway.
+
+**Deterministic is the oracle; probabilistic only proposes.** The model writes the patch; `mise run gate` decides whether it stands. No skill here ever takes the agent's word that something works, and the advisory Jev layer only ever suggests where to look.
+
+**Place each rule in the strongest layer that can hold it.** A habit you have to *remember* isn't a habit. Prose in `CLAUDE.md` is advisory and fades as the context fills up; a hook is enforcement. So the order of preference is a hook, then `AGENTS.md`, then a skill, then memory:
+
+| Layer | Mechanism | Character |
+|---|---|---|
+| Reflex | hooks (habit-hooks, pre-commit) | involuntary, fires on its own |
+| Standing context | `AGENTS.md`, `CONTEXT.md` | ambient, shared vocabulary |
+| Practice | skills | invoked, procedural, uses judgement |
+| Memory | auto-memory | recalled when relevant, last resort |
+
+**The ticket is the real prompt.** An agent's output is capped by its input. `spec` turns an idea into a ticket with testable acceptance criteria and a Definition of Done, drafted with you and filed only once you've approved it. The criteria are the contract `feature` works to, and they work best as executable Given-When-Then scenarios.
+
+**Ground the agent in the code as it is.** A cited, verified codemap gives `spec`, `feature` and `review` the same picture of the repo, so pointers are real and edge cases come from actual flows.
+
+**Green is not correct.** A green gate means clean code, not finished work. `feature` checks every acceptance criterion and Definition of Done item, and `review` holds the diff to them in a fresh context that doesn't share the author's. Reviewers advise; only the gate blocks.
+
+**One path to main.** Every change leaves through `ship`, and a hook denies the shortcut, so no PR skips the gate or the review.
+
+**The flywheel.** After a session, `learn` routes each lesson to the strongest layer that can hold it. A mistake made once becomes a hook or a rule the next session can't skip.
+
+The full write-up behind the method: [Agentic Engineering: Harnesses and Workflows for Teams](https://github.com/CMaintz/foundry/blob/main/docs/agentic-engineering.md).
+
+**How the two repos fit:** [Foundry](https://github.com/CMaintz/foundry) is the shared, deterministic gate: six `mise` verbs (`fix`, `lint`, `typecheck`, `test`, `audit`, `gate`) and the CI workflows that run them, one rule set placed in-loop, pre-push and in CI. This repo is what an agent does with that gate: skills for the procedure, hooks for the reflexes. The seam between them is [CONTRACT.md](./CONTRACT.md), copied verbatim into both.
 
 ## Install
 
@@ -13,136 +40,63 @@ The CI half lives in [foundry](https://github.com/CMaintz/foundry). The seam bet
 /plugin install foundry@cmaintz
 ```
 
-The skills are namespaced by the plugin: `/foundry:ship`, `/foundry:review`, `/foundry:feature`,
-`/foundry:spec`, `/foundry:repo-align`, `/foundry:loop-report`, `/foundry:pr-ci-watch` and
-`/foundry:foundry-secret`.
+The skills are namespaced by the plugin (`/foundry:ship`, `/foundry:spec`, ...), and the Claude Code hooks register themselves from [hooks/hooks.json](./plugins/foundry/hooks/hooks.json). A repo needs Foundry's verbs (`mise run gate`) for the loop to work.
 
-Only `plugins/foundry/` is installed; the rest of the repo (CI, docs, `mise.toml`) is
-for developing the plugin. Paths below are relative to `plugins/foundry/`.
+Only `plugins/foundry/` is installed; the rest of the repo (CI, docs, `mise.toml`) is for developing the plugin. Paths below are relative to `plugins/foundry/`.
 
-## Why hooks and not documentation
+## The loop
 
-A habit you have to *remember* isn't a habit. Prose in `CLAUDE.md` is advisory and fades as the context fills up; a hook is enforcement. There are three mechanisms, and picking the wrong one is why most "AI coding standards" documents get ignored:
+1. **`codemap`** maps the repo once, and refreshes only the slices that went stale.
+2. **`spec`** turns an idea into a testable ticket and files it as `agent:ready`.
+3. **`feature`** claims it, works it in its own worktree and loops on `mise run gate` until green.
+4. **`ship`** re-gates, reviews in a fresh context, commits and opens a draft PR.
+5. **CI** is watched without blocking; a red run is fixed and re-pushed, and the PR goes ready once green.
+6. **`learn`** (from [ivetts-skills](https://github.com/devill/ivetts-skills)) turns what went wrong into a hook, a rule or a skill, so the next loop starts better.
 
-| Layer | Mechanism | Character |
-|---|---|---|
-| Reflex | hooks (habit-hooks, pre-commit) | involuntary, fires on its own |
-| Practice | skills | invoked, procedural, uses judgement |
-| Standing context | `AGENTS.md`, `CONTEXT.md` | ambient, shared vocabulary |
-
-`AGENTS.md` is the canonical file and `CLAUDE.md` is a one-line include of it, so Codex, Gemini and Cursor all work from the same source.
+The hooks run underneath every step.
 
 ## Skills
 
-- `ship`: pre-PR review, run locally. Auto-fix, habit-hooks coaching, a green gate, a fresh-context review against the linked issue, a conventional commit, then the PR. Review happens before the PR exists, which is also what keeps CI free of API keys.
-- `review`: one reviewer instead of three. Correctness, standards and spec lenses in parallel fresh sub-agents, scaled to the size of the change (more below).
-- `spec`: turns a rough idea into a testable spec through a short back-and-forth, then files it as an `agent:ready` issue.
-- `feature`: claims a ready ticket, implements it in its own worktree, loops against `mise run gate` until green, checks the acceptance criteria, and hands off to `ship`.
-- `codemap`: maps the repo into `docs/codemap/`, an index plus one file per domain slice and three lenses, every claim cited and SHA-stamped and spot-checked by a verifier. `codemap refresh` re-audits only the slices whose cited files changed. Describes, never judges.
-- `repo-align`: pays down formatting and structural-smell debt across a repo, one small PR at a time.
+- `spec`: turns a rough idea into a testable spec through a short back-and-forth: acceptance criteria plus a Definition of Done kept separate from them. It rejects DoD items that only restate gate or `ship` checks, and won't file until you explicitly approve the full ticket. With a codemap, its pointers come from the owning slices and must exist in the tree.
+- `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), walks every acceptance criterion and DoD item, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
+- `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review against the linked issue, a conventional commit, then a draft PR through `foundry-ship-pr`, which watches CI and marks the PR ready once green. Review happens before the PR exists, which also keeps API keys out of CI.
+- `review`: one reviewer instead of three. Correctness, standards and spec lenses in parallel fresh sub-agents, scaled to the size of the change. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
+- `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. A Foundry `codemap:check` task that flags dead citations is planned ([foundry#111](https://github.com/CMaintz/foundry/issues/111)).
+- `pr-ci-watch`: loops a PR's CI result back without blocking. Watches the checks in a Herdr pane (or a background task outside Herdr) while the agent keeps working, and on failure fixes, pushes and re-watches.
 - `loop-report`: reads Foundry's verb telemetry to show where the gate spends time and whether the loop is converging or thrashing. Read-only.
-- `pr-ci-watch`: loops a PR's CI result back without blocking. Spawns a Herdr monitor pane that watches the checks while the agent keeps working, then reads the verdict and, on failure, fixes, pushes and re-watches until green. The non-blocking form of `ship`'s watch-CI step; falls back to a background task outside Herdr.
-- `foundry-secret`: triages a gitleaks finding, either allowlisting a confirmed false positive or walking through rotate-then-purge for a real leak.
+- `repo-align`: pays down formatting and structural-smell debt across a repo, one small PR at a time.
+- `foundry-secret`: triages a gitleaks finding: allowlist a confirmed false positive, or rotate-then-purge a real leak.
+
+The plugin also ships the scripts the skills call: `foundry-ship-pr` (the sanctioned PR path), `foundry-pr-report` (one-shot CI verdict with failing-step logs), `foundry-loop-report` (telemetry summary) and `codemap/census.mjs` (the deterministic census `codemap` starts from).
 
 ## Hooks
 
-All the hooks are portable `sh` run through `bash`, so they work on Linux, macOS and Windows git-bash alike. No PowerShell, and none of its encoding and quoting quirks.
+All portable `sh` run through `bash`, so they work on Linux, macOS and Windows git-bash alike. Each one is a silent no-op where it doesn't apply, so they're safe to install globally.
 
-### `hooks/habit-hooks-guard.sh`
-A `Stop` hook that runs [habit-hooks](https://github.com/habit-hooks/habit-hooks) before an agent declares the work done. It only acts in repos that opted in with a `.habit-hooks/` directory, so it's silent everywhere else and safe to install globally.
+| Hook | When | What it does |
+|---|---|---|
+| `auto-format.sh` | after each edit | formats the one file just written with the project's own `prettier` (or `eslint --fix`). Sub-second, so the gate's format check almost never fails. |
+| `habit-hooks-guard.sh` | on stop | runs the repo's pinned [habit-hooks](https://github.com/habit-hooks/habit-hooks) smell check before the agent declares done, in repos with a `.habit-hooks/` directory. A Stop hook because it takes seconds, not milliseconds. |
+| `typecheck-stop.sh` | on stop | runs `mise run typecheck` once per turn when source changed, and coaches with the errors. |
+| `format-java-stop.sh` | on stop | runs `./gradlew spotlessApply` once per turn when `.java` files changed and the build uses Spotless. Gradle is too slow to run per edit. |
+| `guard-generated-files.sh` | before an edit or shell command | blocks hand-editing generated baselines (`snooze.json`, `eslint-suppressions.json`) and points at the command that regenerates them. |
+| `guard-pr-create.sh` | before a Bash call | denies a bare `gh pr create`, so no PR skips `ship`. The sanction is the `foundry-ship-pr` script itself, which runs the create as a subprocess the hook never sees. |
+| `jev-toolcall-triage.sh` | on stop | opt-in (`JEV_TOOLCALL_TRIAGE=1`): asks Jev whether the turn looked destructive and prints a warning. Never blocks. |
+| `leash.sh` | prompt, stop, session start | opt-in (`LEASH_ENABLED`): the Foundry adapter for [Leash](https://github.com/CMaintz/leash), which checks each turn's diff against the un-lintable rules in `CLAUDE.md`/`AGENTS.md`. Advisory. |
+| `pre-push` | `git push` | a plain git hook: runs `mise run gate` and aborts the push if it fails, so a human gets the same gate as the agent. |
+| `pre-commit` | `git commit` | a plain git hook: formats staged files with the repo's own `prettier` and re-stages them. |
 
-It's a `Stop` hook rather than `PostToolUse` on purpose: habit-hooks takes ~25s cold (~6s warm), far too slow to run after every edit. That also matches habit-hooks' own advice to *"run it before considering work complete."*
-
-If the repo has a `.claude/worktrees/` directory (Claude Code's `EnterWorktree`) that isn't ignored, the hook adds it to the clone's `.git/info/exclude` first. Otherwise `habit-hooks --branch` scans those full repo copies as untracked branch files and reports every file as duplicated. Nothing in the repo changes.
-
-### `hooks/auto-format.sh`
-A `PostToolUse` hook (matching `Edit|Write|MultiEdit`) that formats the one file just written, so formatting is sorted before CI ever sees it. The gate's format check then almost never fails and the agent doesn't burn a round-trip on a whitespace nit. It runs `prettier --write` on that file (falling back to `eslint --fix`) and is sub-second.
-
-Unlike habit-hooks-guard this one *is* `PostToolUse`, and that's the point: a single-file `prettier` run is cheap enough for every edit, whole-project formatters aren't. It only acts when the file's project has a local `prettier` or `eslint`, so elsewhere it's a silent no-op and safe to install globally. Java and Kotlin aren't formatted here because Gradle's JVM startup is too slow per edit; `format-java-stop.sh` below handles them once per turn instead.
-
-Register it in `~/.claude/settings.json` (copy the script to `~/.claude/hooks/` first). On Windows, point `command` at git-bash's bash by full path. A bare `"bash"` resolves to WSL's `System32\bash.exe`, which fails with `execvpe(/bin/bash)`. Use forward slashes in the script argument, since git-bash won't open a backslash path:
-
-```json
-"hooks": {
-  "PostToolUse": [
-    {
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "C:\\Program Files\\Git\\bin\\bash.exe",
-          "args": ["C:/Users/<you>/.claude/hooks/auto-format.sh"],
-          "timeout": 30,
-          "statusMessage": "Formatting..."
-        }
-      ]
-    }
-  ]
-}
-```
-
-### `hooks/format-java-stop.sh`
-A `Stop` hook that runs `./gradlew spotlessApply` once when a turn finishes, but only if the turn touched `.java` files and the build actually uses Spotless. It's the Java counterpart to `auto-format.sh`, placed differently because the cost is different: a `prettier` run is sub-second, Gradle's JVM startup takes seconds. Once per turn is the right cadence for a JVM formatter, and Spotless's `ratchetFrom origin/main` limits the rewrite to changed files so nothing untouched gets reformatted. It's the same config as the CI Spotless check, just applied before the PR instead of on it. Register it as a second `Stop` hook next to `habit-hooks-guard.sh`; order doesn't matter (the formatter exits 0, the habit check may exit 2 to coach).
-
-### `hooks/typecheck-stop.sh`
-A `Stop` hook that runs `mise run typecheck` once per turn, but only when the turn touched source and the repo has an exact top-level `typecheck` task (monorepos namespace theirs, so it cleanly does nothing there). If the check fails it exits 2 with the errors as coaching; infrastructure failures never block. It catches type errors a turn before `/ship` would, which closes the gap habit-hooks-guard leaves (it only checks smells). It's heavier than the per-edit formatters (tsc, a Gradle compile or mypy over the whole project), so it's opt-in. Skip it if the per-turn wait isn't worth it on a slow Gradle build.
-
-### `hooks/pre-push`
-A plain git `pre-push` hook (POSIX sh, not a Claude hook) that runs `mise run gate` before a push and aborts if it fails. That way a human doing `git push` gets the same gate the agent's `/ship` enforces. It does nothing where there's no `mise.toml`. Install with `cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (or version it via `core.hooksPath`), and skip it once with `git push --no-verify`.
-
-### `hooks/pre-commit`
-A plain git `pre-commit` hook (POSIX sh, not a Claude hook) that formats staged files with the repo's own `node_modules/.bin/prettier` and re-stages them, so commits don't carry formatting drift. A staged file that also has unstaged changes is skipped with a note, because formatting and re-adding it would commit the unstaged hunks too; `lint`'s `prettier --check` catches it at push. It does nothing without a local prettier, so it's safe in any stack. Install it like `pre-push`, and skip it once with `git commit --no-verify`.
-
-### `hooks/guard-generated-files.sh`
-A `PreToolUse` hook (matching `Edit|Write|MultiEdit`) that blocks an agent from hand-editing tool-generated baselines (`snooze.json` and `eslint-suppressions.json`). It exits 2 with a message pointing at the right way to regenerate them (bootstrap's `habit-snooze --prune`, or `mise run fix`). The repo-align skill already *says* not to hand-edit these, but a skill is advisory and fades with context; a `PreToolUse` block isn't. It only fires on the agent's own edits, since CI and bootstrap regenerate these files outside the agent's tools.
-
-### `hooks/guard-pr-create.sh`
-A `PreToolUse` hook (matching `Bash`) that blocks a raw `gh pr create` so a PR can't skip the `ship` sequence (fix, smells, gate, review, commit, then a non-blocking CI watch). Nothing else *enforces* `ship` - the skill is advisory and fades with context - so an agent (including the ones in this repo) can quietly open a PR with bare `gh` and bypass the gate and review entirely. This hook is the enforcement: it exits 2 with a message pointing at `ship`. It matches only `gh pr create` as whole words, so `gh pr checks|view|edit|merge|diff`, `gh run`, `gh issue`, `git push` and `git commit` all pass untouched, and it inspects the command string alone (not the Bash `description`), so a command that merely mentions the phrase isn't caught.
-
-`ship` is the one sanctioned caller, so step 6 of the skill writes a single-use sentinel file (`.foundry/.ship-open-pr`, under the local gitignored `.foundry/` state dir) in its own step immediately before the create; the hook consumes it (deletes it) on allow, so it can authorise exactly one create and can't be reused for a second bare one. A file `ship` actually creates is a clearer "ship really ran" signal than an env var an agent could trivially prepend. Register it like `auto-format.sh` above (the `settings.json` snippet), but under `PreToolUse` with matcher `Bash`.
-
-### `hooks/jev-toolcall-triage.sh`
-An **opt-in** `Stop` hook that asks [Jev](https://typesafe.ai) whether the turn looked destructive or irreversible (deleting data, force-pushing, dropping a table, a payment or side-effecting external call) and prints a one-line **warning**; it is advisory and **never blocks** (it never `exit 2`s; Jev is a proposer, not the oracle). It is the dev-loop *coach* counterpart to a runtime guardrail like `jev-guard`, which actually blocks real calls in a shipped agent.
-
-Off by default, and easy to flip: it no-ops unless `JEV_TOOLCALL_TRIAGE` is truthy, on top of needing `JEV_API_KEY` and `node`. Enable it for a session with `export JEV_TOOLCALL_TRIAGE=1` and disable it by unsetting the variable, with no `settings.json` edit needed. Register it as a `Stop` hook alongside the others (order-independent; it only ever exits 0). Silent no-op when off, keyless, or outside a repo, so it is safe to register globally.
-
-### `hooks/leash.sh`
-The Foundry adapter for [Leash](https://github.com/CMaintz/leash), the Jev-powered coach that checks each turn's diff against the un-lintable rules in `CLAUDE.md`/`AGENTS.md`. Leash can install its own hooks, but on a Foundry machine this script drives it instead, and `leash init` notices it in `settings.json` and stays out, so a repo is never double-hooked. Register it three times, passing the Leash subcommand: `UserPromptSubmit` with `snapshot` (timeout 30), `Stop` with `hook` (timeout 90) and `SessionStart` with `session` (timeout 30). It needs the `leash` CLI on PATH (`npm i -g @cmaintz/leash`) and is off unless `LEASH_ENABLED` is truthy, so set that in a repo's mise `[env]` to turn Leash on there. Advisory: it always exits 0, and a Stop block from Leash is a repair request it makes at most once per finding.
+The two git hooks aren't installed by the plugin. Copy them in with `cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (same for `pre-commit`), or version them via `core.hooksPath`; skip once with `--no-verify`.
 
 ## The advisory Jev layer
 
-`scripts/jev/` is a near-free [Jev](https://typesafe.ai) (TypeSafe System One) layer on
-the **proposer** side of Foundry: it decides where to spend expensive, slow LLM effort,
-and never touches pass/fail. It is opt-in and fail-open: set `JEV_API_KEY` to turn it on;
-with no key every entry point falls back to current behavior. Optional env:
-`JEV_PROVIDER` (`typesafe` | `cloudflare`), `JEV_MODEL` (default `jev-latest`),
-`CLOUDFLARE_ACCOUNT_ID`, and `TYPESAFE_AI_BASE_URL` (self-host / proxy / mock).
+`scripts/jev/` puts [Jev](https://typesafe.ai) (TypeSafe System One) on the **proposer** side of Foundry: cheap judgements about where to spend expensive LLM effort, never about pass/fail. It's opt-in and fail-open: set `JEV_API_KEY` to turn it on, and with no key everything behaves as before.
 
-The two consumers that interrupt a turn carry an explicit **off-by-default** toggle, so
-the key alone does not enable them: `JEV_TOOLCALL_TRIAGE` (tool-call triage) and
-`JEV_FEATURE_PRECHECK` (feature pre-check). Set either to `1` (or `true`/`yes`/`on`) to
-turn it on, unset it to turn it off. Review focus has no toggle; it only reorders where
-to look and never interrupts, so the key is enough.
+- **Review focus** (`review`): `scripts/jev/review.mjs` ranks which changed files deserve the deepest look. It reorders, never drops.
+- **Feature pre-check** (`feature`, off unless `JEV_FEATURE_PRECHECK=1`): `scripts/jev/precheck.mjs` gives a quick "ticket ready?" / "diff plausibly done?" before the expensive verify. Only a confident "no" short-circuits.
+- **Tool-call triage** (the `jev-toolcall-triage.sh` hook above).
 
-Three consumers, all advisory:
-
-- **Review focus** (`review` skill) - `scripts/jev/review.mjs` routes which changed files
-  warrant deep review and on which lens. It only reorders where to look first; it never
-  drops a file from review.
-- **Feature pre-check** (`feature` skill) - `scripts/jev/precheck.mjs` gives a cheap
-  Noul on "ticket ready?" / "diff plausibly satisfies the criteria?" before an expensive
-  LLM verify. Only a confident "no" short-circuits; uncertainty proceeds. Opt-in and off
-  by default behind `JEV_FEATURE_PRECHECK`.
-- **Tool-call triage** (`jev-toolcall-triage.sh` Stop hook, `scripts/jev/toolcall.mjs`) -
-  warns when a turn looks destructive or irreversible. Opt-in and off by default behind
-  `JEV_TOOLCALL_TRIAGE`; warn-only, never blocks. See the hook section above.
-
-**The invariant:** Jev is ~68% accurate, so it stays strictly on the proposer side and
-**never enters the deterministic gate** (`mise run gate`) or CI. `client.mjs` and
-`route.mjs` are vendored from `CMaintz/foundry:scripts/jev/` (the canonical home) and
-kept in sync by backport discipline. Config is opt-in per the `[jev]` block
-(`enabled = false` default, `model = jev-latest`); the shared `[jev]` mise template lives
-in `CMaintz/foundry` (a follow-up there).
+Jev is around 68% accurate, so it never decides anything in `mise run gate` or CI: the gate runs these scripts' own unit tests, never Jev itself. `client.mjs` and `route.mjs` are vendored from [foundry's `scripts/jev/`](https://github.com/CMaintz/foundry/tree/main/scripts/jev), the canonical home.
 
 ## Standing on shoulders
 
@@ -169,16 +123,9 @@ Install those plugins and you end up with several things called some flavour of 
 
 `ship` calls `review` in step 4. Everything is namespaced as `plugin:skill`, so nothing clashes.
 
-## The flywheel: `learn`
+## Developing
 
-Ivett's `learn` is the skill the whole setup leans on most. It reflects on a session and routes each lesson to the place that will actually *enforce* it, in this order:
-
-1. a deterministic hook (habit-hooks or a check): enforcement, not memory
-2. `AGENTS.md` / `CLAUDE.md`: standing context
-3. a new skill: a reusable procedure
-4. auto-memory: last resort
-
-That ordering is basically this project's thesis written as a skill: prefer the placement that makes a mistake impossible over the one that just reminds you not to make it. Run it (`/learn`, or "what did we learn?") before saving anything to memory, because a lesson that could be a hook shouldn't fade into a note. It's how borrowed habits gradually become your own, and how a one-off fix in this session becomes a rule the next session can't skip.
+This repo is gated by its own Foundry verbs ([mise.toml](./mise.toml)): `mise run gate` runs shellcheck, the Node and hook tests, and a gitleaks scan, locally and in CI.
 
 ## Licence
 
