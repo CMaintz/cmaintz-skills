@@ -30,8 +30,10 @@ Mechanical fixes only. Review the resulting diff before continuing — `fix` mut
 ### 2. Structural smells
 
 ```bash
-habit-hooks
+mise run smells
 ```
+
+Run `mise run smells` when `mise tasks ls` lists a top-level `smells` task: it runs the habit-hooks version the repo pins, the same check `gate` runs. A bare `habit-hooks` runs whatever is first on `PATH`, which can be an older global install. `smells` is an auxiliary task, not a contract verb, so when the repo has none, run `habit-hooks` instead, under the rule below.
 
 `habit-hooks` is opt-in per repo, by the same rule `hooks/habit-hooks-guard.sh` uses: a `.habit-hooks/` directory at the repo root or in an immediate subdirectory. With none, skip this step, count it as no smells, and say so once. With one but no `habit-hooks` command on `PATH`, stop with an error instead of skipping: a broken install must never pass as clean.
 
