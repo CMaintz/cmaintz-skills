@@ -29,15 +29,22 @@ Resolve the ticket: from `<ref>` in supervised mode, or the oldest `agent:ready`
 
 **Completeness check** - the ticket has an intent, an acceptance-criteria checklist, a Definition of Done (a `- [ ]` checklist, or the sentinel `None beyond the acceptance criteria.`), and scope boundaries (the [schema](#the-ticket)). A missing or empty Definition of Done section fails the check: only the sentinel says "nothing extra". In puller mode, a ticket that fails is skipped. In supervised mode, interview the user to fill the gaps, then continue.
 
-**Claim** before writing a line of code:
+**Claim** before writing a line of code. Pick the slug first, since the claim marker names the branch and worktree that step 2 creates:
 
 ```bash
 gh issue edit <n> --add-label agent:working --remove-label agent:ready --add-assignee @me
+gh issue comment <n> --body "claimed by feat/<slug>-<n> at ../_wt/<slug>-<n>"
 ```
 
-Then **re-read** the issue and confirm you hold it (`agent:working`, assigned to you). If it moved under you, another worker won the race — abandon it and, in puller mode, try the next ticket.
+Then **re-read** the issue and confirm you hold it: `agent:working`, assigned to you, and the latest claim marker is yours. Every session shares one GitHub identity, so only the marker tells two sessions apart. If it moved under you, or the latest marker names another worktree, another worker won the race - abandon it and, in puller mode, try the next ticket. The latest marker on a ticket:
 
-**WIP = 1.** If a ticket already assigned to you sits in `agent:working`, finish or release it first. One in-flight ticket per machine.
+```bash
+gh api --paginate "repos/{owner}/{repo}/issues/<n>/comments" --jq '.[].body | select(startswith("claimed by "))' | tail -n 1
+```
+
+It pages through every comment, so the marker is found on a long thread too, and prints nothing when the ticket has no marker.
+
+**WIP = 1 per session.** This session's worktree is the one it created in step 2, or entered to resume a ticket; a session with none holds nothing. Before claiming, list the `agent:working` tickets assigned to you (`gh issue list --label agent:working --assignee @me --json number`) and read each one's latest marker. If one names this session's worktree, finish or release it first. A marker naming another worktree belongs to a sibling session, and a ticket with no marker belongs to no session; neither blocks this one. The limit is per session, not per machine, so parallel sessions in their own worktrees can each work a ticket while each still holds only one.
 
 ### 2. Isolated worktree
 
@@ -94,6 +101,8 @@ A green gate proves the code is *clean*; it does not prove the feature *works*. 
 
 ### 5. Hand to ship
 
+First read the latest claim marker again. Two sessions can each post a marker and each see their own on the step 1 re-read, if the second posts after the first has looked; only the later marker owns the ticket. If the latest marker now names another worktree, stop: leave the ticket to that session and do not ship.
+
 Invoke **`foundry:ship`**. It re-runs the gate as the final authority, reviews the diff in a fresh context against the linked issue, writes a conventional commit, and opens the PR. Reference the ticket (`Closes #<n>`) so it closes on merge, and clear `agent:working`.
 
 ## Escalation
@@ -117,6 +126,8 @@ Key off **inactivity, not "has no branch/PR"** — a session that already opened
 ```bash
 gh issue view <n> --json updatedAt --jq .updatedAt   # plus the linked PR's updatedAt, if any
 ```
+
+Reclaiming needs no claim marker: a dead session's ticket goes by the clock alone, whatever its marker says. The resuming session claims it through step 1 like any other ticket, posting a fresh marker that names its own worktree, so the latest marker always names the current owner. That comment is itself activity, so the inactivity clock restarts from the resume.
 
 ## The ticket
 
