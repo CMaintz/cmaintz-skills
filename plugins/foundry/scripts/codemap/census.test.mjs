@@ -214,6 +214,47 @@ test('vendored code, by linguist-vendored or a vendor directory, is not inventor
   assert.deepEqual(envVars.map((v) => v.name), ['OWN_KEY']);
 });
 
+test('runtime entrypoints: workflows, containers, compose services, IaC, agent hooks, git hooks and scripts', () => {
+  const hooks = {
+    hooks: {
+      PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'bash "${CLAUDE_PLUGIN_ROOT}"/hooks/guard.sh' }] }],
+      Stop: [{ hooks: [{ type: 'command', command: 'bash "${CLAUDE_PLUGIN_ROOT}"/hooks/stop.sh', timeout: 60 }] }],
+    },
+  };
+  const root = fixture([{
+    '.github/workflows/gate.yml': 'name: Gate\non: [push]\njobs: {}\n',
+    '.github/workflows/deploy.yaml': 'on: push\njobs: {}\n',
+    Dockerfile: 'FROM node\nENTRYPOINT ["node", "server.js"]\n',
+    'docker-compose.yml': 'services:\n  api:\n    image: x\n  db:\n    image: postgres\nvolumes:\n  data: {}\n',
+    'deploy/compose.yaml': 'services:\n    web:\n        image: x\n# the queue worker\n    worker:\n        image: y\n',
+    'infra/main.bicep': '',
+    'infra/net.tf': '',
+    'plugins/p/hooks/hooks.json': JSON.stringify(hooks),
+    'plugins/p/hooks/guard.sh': '#!/bin/sh\n',
+    'hooks/pre-push': '#!/bin/sh\nmise run gate\n',
+    'scripts/release': '#!/usr/bin/env bash\necho release\n',
+    LICENSE: 'MIT\n',
+  }]);
+
+  const seen = census(root).entrypoints.map((e) => `${e.kind} ${e.symbol ?? '-'} ${e.path}`);
+
+  assert.deepEqual(seen.sort(), [
+    'container - Dockerfile',
+    'git-hook pre-push hooks/pre-push',
+    'hook PreToolUse:Bash plugins/p/hooks/guard.sh',
+    'hook Stop plugins/p/hooks/stop.sh',
+    'iac - infra/main.bicep',
+    'iac - infra/net.tf',
+    'script release scripts/release',
+    'service api docker-compose.yml',
+    'service db docker-compose.yml',
+    'service web deploy/compose.yaml',
+    'service worker deploy/compose.yaml',
+    'workflow Gate .github/workflows/gate.yml',
+    'workflow deploy .github/workflows/deploy.yaml',
+  ]);
+});
+
 test('schemas and env vars are detected from their conventional sources', () => {
   const root = fixture([
     {
@@ -233,6 +274,58 @@ test('schemas and env vars are detected from their conventional sources', () => 
     envVars.map((v) => v.name),
     ['API_KEY', 'CONN_STRING', 'DB_URL', 'PORT', 'REGION'],
   );
+});
+
+test('env vars are read from shell and Python scripts, compose files and Dockerfiles', () => {
+  const root = fixture([{
+    // POLL is assigned here and FILE is a loop variable, so neither comes from the environment.
+    'scripts/ship.sh': [
+      'root=$(pwd)',
+      'POLL="${SHIP_POLL_SECONDS:-15}"',
+      'BASE=""; BODY=""',
+      'case "$1" in --body) BODY="$2" ;; esac',
+      '# $COMMENTED is documentation, not a read',
+      '[ -n "$CI" ] && exit 0',
+      'echo "$HOME $root $POLL $BASE $BODY $1"',
+      'for FILE in *; do :; done',
+      "last=$(echo a b | awk '{print $NF}')",
+    ].join('\n'),
+    'bin/report': '#!/usr/bin/env python3\nimport os\np = os.environ.get("REPORT_PATH") or os.getenv(\'REPORT_DIR\')\nk = os.environ["TOKEN"]\n',
+    'bin/notes': 'set $PRICE later\n',
+    'docker-compose.yml': [
+      'services:',
+      '  api:',
+      '    environment:',
+      '      ConnectionStrings__Db: "Host=db"',
+      '      Frontend__Url: ${FRONTEND_URL}',
+      '    ports:',
+      '      - "8080:8080"',
+      '  worker:',
+      '    environment:',
+      '      - QUEUE_NAME=jobs',
+      '      - "QUOTED_NAME=1"',
+    ].join('\n'),
+    Dockerfile: 'FROM node\nARG BUILD_ENV\nENV PORT=8080 \\\n    NODE_ENV=production\nENV LEGACY_NAME value\n',
+  }]);
+
+  const { envVars } = census(root);
+
+  assert.deepEqual(envVars.map((v) => `${v.name} ${v.files.join(',')}`), [
+    'BUILD_ENV Dockerfile',
+    'CI scripts/ship.sh',
+    'ConnectionStrings__Db docker-compose.yml',
+    'FRONTEND_URL docker-compose.yml',
+    'Frontend__Url docker-compose.yml',
+    'LEGACY_NAME Dockerfile',
+    'NODE_ENV Dockerfile',
+    'PORT Dockerfile',
+    'QUEUE_NAME docker-compose.yml',
+    'QUOTED_NAME docker-compose.yml',
+    'REPORT_DIR bin/report',
+    'REPORT_PATH bin/report',
+    'SHIP_POLL_SECONDS scripts/ship.sh',
+    'TOKEN bin/report',
+  ]);
 });
 
 test('churn counts only commits inside the --since window', () => {
