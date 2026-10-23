@@ -30,7 +30,7 @@ Files come from `git ls-files --cached --others --exclude-standard`, so gitignor
   // Sorted by path, then line.
   "entrypoints": [
     // kind: "http-route" | "bin" | "program" | "hosted-service".
-    // method and route are set on http-route; symbol names a bin, class or action.
+    // method and route are set on http-route; symbol names a bin, class, action or handler.
     // line is set when the entry comes from a match inside a file.
     { "kind": "http-route", "path": "src/server.ts", "line": 2, "method": "GET", "route": "/health" },
     { "kind": "http-route", "path": "src/Api/Controllers/UsersController.cs", "line": 5,
@@ -75,6 +75,12 @@ Detection is regex-based and errs towards false negatives:
 - A controller action's route joins its class's `[Route("...")]` with the `[Http*("...")]`
   template, or with a method-level `[Route("...")]` when the attribute has none. A
   template starting with `/` or `~/` is absolute.
+- A minimal-API route (`Map{Get,Post,Put,Patch,Delete}`) joins the prefixes of the
+  `MapGroup` chain its receiver comes from, followed through a local
+  (`var auth = app.MapGroup("/api/auth")`) or a method parameter
+  (`MapUsers(app.MapGroup("/api/users"))`) within the same file. A helper called with
+  several groups reports the route once per group. A method-group handler
+  (`MapGet("/", ListUsers)`) is its symbol; a lambda has none.
 - Test files (`*.test.*`, `*.spec.*`, and anything under `test/`, `tests/` or
   `__tests__/`) are skipped for `entrypoints` and `envVars`, since their fixtures would
   read as the app's own.

@@ -134,6 +134,50 @@ test('a .NET fixture reports its controller actions, minimal-API endpoints and h
   assert.equal(entrypoints.find((e) => e.route === '/api/Users/recent').symbol, 'Recent');
 });
 
+test('minimal-API routes carry their MapGroup prefix and a method-group handler as symbol', () => {
+  const root = fixture([{
+    'src/Api/Endpoints.cs': [
+      'public static class Endpoints',
+      '{',
+      '    public static void Map(this IEndpointRouteBuilder app)',
+      '    {',
+      '        MapUsers(app.MapGroup("/api/users").RequireAuthorization());',
+      '        var auth = app.MapGroup("/api/auth").WithTags("Auth");',
+      '        auth.MapPost("/login", Login).WithSummary("Sign in.");',
+      '        var admin = auth.MapGroup("/admin");',
+      '        admin.MapDelete("/{id}", (Guid id) => Results.NoContent());',
+      '        app.MapGet("/health", () => "ok");',
+      '        app.MapGroup("/api/tags").MapGet("/", ListTags);',
+      '        app.MapGroup("/api/admin").RequireAuthorization()',
+      '            .MapPost("/reset", Reset);',
+      '        app.MapGroup("/t/{tenant}").MapGet("/stats", Stats);',
+      '    }',
+      '',
+      '    private static void MapUsers(RouteGroupBuilder users)',
+      '    {',
+      '        users.MapGet("/", ListUsers);',
+      '        users.MapGet("/{id:guid}", async (Guid id) => Results.Ok());',
+      '    }',
+      '}',
+    ].join('\n'),
+  }]);
+
+  const routes = census(root).entrypoints
+    .filter((e) => e.kind === 'http-route')
+    .map((e) => `${e.method} ${e.route} ${e.symbol ?? '-'}`);
+
+  assert.deepEqual(routes, [
+    'POST /api/auth/login Login',
+    'DELETE /api/auth/admin/{id} -',
+    'GET /health -',
+    'GET /api/tags ListTags',
+    'POST /api/admin/reset Reset',
+    'GET /t/{tenant}/stats Stats',
+    'GET /api/users ListUsers',
+    'GET /api/users/{id:guid} -',
+  ]);
+});
+
 test('a gitignored file is never reported, even when it would match every detector', () => {
   const root = fixture([
     {
