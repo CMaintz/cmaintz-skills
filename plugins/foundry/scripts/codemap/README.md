@@ -4,7 +4,7 @@ A deterministic inventory of a repo, the factual starting point for the codemap 
 Node 22, no dependencies, reads only, prints JSON to stdout.
 
 ```bash
-node scripts/codemap/census.mjs [--since "12 months ago"] [--threshold 0.5] [--min-shared 3]
+node plugins/foundry/scripts/codemap/census.mjs [--since "12 months ago"] [--threshold 0.5] [--min-shared 3]
 ```
 
 Run it anywhere inside a git work tree; it inventories the whole tree from the top level.
