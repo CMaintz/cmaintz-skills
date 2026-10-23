@@ -55,9 +55,11 @@ Implement toward the acceptance checklist, then loop. Each cycle runs the same t
 
 ```bash
 mise run fix     # mechanical fixes only; it mutates files — review the diff
-habit-hooks      # structural smells; its output is coaching, a highest-priority instruction
+mise run smells  # structural smells; its output is coaching, a highest-priority instruction
 mise run gate    # the oracle — must exit 0
 ```
+
+Run `mise run smells` when `mise tasks ls` lists a top-level `smells` task: it runs the habit-hooks version the repo pins, the same check `gate` runs. A bare `habit-hooks` runs whatever is first on `PATH`, which can be an older global install. `smells` is an auxiliary task, not a contract verb, so when the repo has none, run `habit-hooks` instead, under the rule below.
 
 `habit-hooks` is opt-in per repo, by the same rule `hooks/habit-hooks-guard.sh` uses: a `.habit-hooks/` directory at the repo root or in an immediate subdirectory.
 
