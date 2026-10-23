@@ -415,7 +415,15 @@ test('a source root inside one top-level directory does not stop wrapper descent
   );
 });
 
-test('a folder name repeated across layers becomes one slice named after it, except generic names', () => {
+test('feature folders that each hold the same layer folders stay sliced by feature', () => {
+  const layers = ['controllers', 'services', 'repositories'];
+  const root = fixture([Object.fromEntries(['billing', 'orders', 'users']
+    .flatMap((feature) => layers.map((layer) => [`src/${feature}/${layer}/x.ts`, ''])))]);
+
+  assert.deepEqual(census(root).slicePlan.map((s) => s.name), ['src/billing', 'src/orders', 'src/users']);
+});
+
+test('a folder name repeated across layer folders becomes one slice named after it, except generic names', () => {
   const root = fixture([{
     'src/Api/Program.cs': '',
     'src/Api/Orders/OrdersEndpoint.cs': '',
