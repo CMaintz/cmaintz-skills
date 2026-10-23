@@ -9,7 +9,7 @@ The front half of the Foundry loop: a feature request becomes a change that reac
 
 ## Modes
 
-- **`/feature <ref>` — supervised.** Work that specific ticket. If its acceptance criteria are thin, interview the user to fill the [ticket schema](#the-ticket) before claiming.
+- **`/feature <ref>` - supervised.** Work that specific ticket. If its acceptance criteria are thin or it has no Definition of Done, interview the user to fill the [ticket schema](#the-ticket) before claiming.
 - **`/feature` — puller.** Sweep stale claims (see [Stale-claim recovery](#stale-claim-recovery)), then claim the next `agent:ready` ticket that already passes the completeness check. Skip incomplete tickets — never interview in this mode, since no one is there to answer. Wrap in `/loop <interval> /feature` for a semi-auto backlog puller.
 
 ## Before you start
@@ -27,7 +27,7 @@ Do not skip or reorder. Each step exists because the next is untrustworthy witho
 
 Resolve the ticket: from `<ref>` in supervised mode, or the oldest `agent:ready` ticket that passes the completeness check in puller mode.
 
-**Completeness check** — the ticket has an intent, an acceptance-criteria checklist, and scope boundaries (the [schema](#the-ticket)). In puller mode, a ticket that fails is skipped. In supervised mode, interview the user to fill the gaps, then continue.
+**Completeness check** - the ticket has an intent, an acceptance-criteria checklist, a Definition of Done (a `- [ ]` checklist, or the sentinel `None beyond the acceptance criteria.`), and scope boundaries (the [schema](#the-ticket)). A missing or empty Definition of Done section fails the check: only the sentinel says "nothing extra". In puller mode, a ticket that fails is skipped. In supervised mode, interview the user to fill the gaps, then continue.
 
 **Claim** before writing a line of code:
 
@@ -51,7 +51,7 @@ Work only in that worktree so the main checkout stays untouched. Pinned tools (m
 
 ### 3. Inner loop — drive the gate green (bounded)
 
-Implement toward the acceptance checklist, then loop. Each cycle runs the same three commands `ship` re-runs authoritatively, so a clean cycle here means `ship` will not bounce it back:
+Implement toward the acceptance checklist and the Definition of Done, then loop. Each cycle runs the same three commands `ship` re-runs authoritatively, so a clean cycle here means `ship` will not bounce it back:
 
 ```bash
 mise run fix     # mechanical fixes only; it mutates files — review the diff
@@ -80,7 +80,7 @@ On exhaustion or no-progress, [escalate](#escalation).
 
 ### 4. Verify — behaviourally, against every criterion
 
-A green gate proves the code is *clean*; it does not prove the feature *works*. Invoke the `verify` skill (or `run`) and walk the acceptance checklist **item by item** — every criterion accounted for, pass or fail. If a criterion cannot be met, [escalate](#escalation).
+A green gate proves the code is *clean*; it does not prove the feature *works*. Invoke the `verify` skill (or `run`) and walk the acceptance checklist **item by item** - every criterion accounted for, pass or fail. Then walk the Definition of Done the same way, reporting each item pass or fail; the sentinel `None beyond the acceptance criteria.` adds nothing to walk. If an acceptance criterion or a DoD item cannot be met, [escalate](#escalation).
 
 **Optional Jev pre-check (advisory, opt-in, off by default).** Enabled only when `JEV_FEATURE_PRECHECK` is truthy (and `JEV_API_KEY` is set); otherwise the script no-ops and proceeds, so it is safe to call unconditionally. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/jev/precheck.mjs" satisfies "<acceptance criteria>" <base>`. A `proceed: false` (a confident "no") means the diff likely misses a criterion, so fix that before spending the full verify. Anything else (uncertain, disabled, or no key) proceeds to the verify below. This never replaces the verify; it only avoids spending one on an obvious miss. (The same script's `ready` mode can pre-screen a ticket's completeness in puller mode at step 1.) Enable with `export JEV_FEATURE_PRECHECK=1`, disable by unsetting it.
 
@@ -90,7 +90,7 @@ Invoke **`foundry:ship`**. It re-runs the gate as the final authority, reviews t
 
 ## Escalation
 
-When the inner loop exhausts, a criterion is unmet, or `ship` hits a stop condition, escalate **durably** — the thread is the memory, an in-session explanation dies with the session:
+When the inner loop exhausts, an acceptance criterion or DoD item is unmet, or `ship` hits a stop condition, escalate **durably** - the thread is the memory, an in-session explanation dies with the session:
 
 1. Post the stuck-state to the issue thread: what was attempted, the failing verbs, and the last `gate` output.
 2. **Then** flip `agent:working` → `agent:blocked` and unassign.
@@ -112,7 +112,7 @@ gh issue view <n> --json updatedAt --jq .updatedAt   # plus the linked PR's upda
 
 ## The ticket
 
-A GitHub Issue, normalized to one object. The authoritative fields — intent, the acceptance-criteria checklist, scope boundaries, pointers — live in Foundry's `presets/ticket-schema.md`. The checklist is load-bearing: it is what step 4 and `ship`'s spec review walk item by item.
+A GitHub Issue, normalized to one object. The authoritative fields - intent, the acceptance-criteria checklist, the Definition of Done, scope boundaries, pointers - live in Foundry's `presets/tickets/ticket-schema.md`. The two checklists are load-bearing: step 4 and `ship`'s spec review walk both item by item.
 
 ## Stop conditions
 
