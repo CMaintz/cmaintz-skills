@@ -29,7 +29,7 @@ An agent is fast and confident, and neither makes it right. These skills and hoo
 
 **The flywheel.** After a session, `learn` routes each lesson to the strongest layer that can hold it. A mistake made once becomes a hook or a rule the next session can't skip.
 
-The full write-up behind the method: [Agentic Engineering: Harnesses and Workflows for Teams](https://github.com/CMaintz/foundry/blob/main/docs/agentic-engineering.md).
+The full write-up behind the method: [Agentic Engineering: Harnesses and Workflows for Teams](https://github.com/CMaintz/foundry/blob/main/docs/agentic-engineering/README.md).
 
 **How the two repos fit:** [Foundry](https://github.com/CMaintz/foundry) is the shared, deterministic gate: six `mise` verbs (`fix`, `lint`, `typecheck`, `test`, `audit`, `gate`) and the CI workflows that run them, one rule set placed in-loop, pre-push and in CI. This repo is what an agent does with that gate: skills for the procedure, hooks for the reflexes. The seam between them is [CONTRACT.md](./CONTRACT.md), copied verbatim into both.
 
