@@ -47,7 +47,7 @@ One ticket, one worktree, one branch off `origin/main`, one PR — matching `col
 git worktree add -b feat/<slug>-<n> ../_wt/<slug>-<n> origin/main
 ```
 
-Work only in that worktree so the main checkout stays untouched. A new worktree has no installed deps (`node_modules`, PMD, ...), so run `mise install` in it first; otherwise `habit-hooks` reports its tools as missing instead of checking anything.
+Work only in that worktree so the main checkout stays untouched. Pinned tools (mise tools, the habit-hooks venv, PMD) are installed once per machine and shared, but a new worktree has neither mise trust nor the project's own dependencies. Run `mise trust`, `mise install`, then the repo's dependency install (`npm ci` for Node); `mise install` does not create `node_modules`, and without it the TypeScript smell sensors report their tools as missing instead of checking anything.
 
 ### 3. Inner loop — drive the gate green (bounded)
 
