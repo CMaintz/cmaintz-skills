@@ -85,6 +85,7 @@ export function census(root = process.cwd(), opts = {}) {
     .map(([path, commitCount]) => ({ path, commits: commitCount }))
     .sort((x, y) => y.commits - x.commits || byText(x.path, y.path));
 
+  const { slices, unsliced } = planSlices(files, commits, options);
   return {
     manifests: files.filter(isManifest),
     entrypoints: entrypoints.sort((x, y) => byText(x.path, y.path) || (x.line ?? 0) - (y.line ?? 0)),
@@ -94,7 +95,8 @@ export function census(root = process.cwd(), opts = {}) {
       .sort((x, y) => byText(x.name, y.name)),
     churn,
     coChange: coupledPairs(commits, options),
-    slicePlan: planSlices(files, commits, options),
+    slicePlan: slices,
+    unsliced,
   };
 }
 

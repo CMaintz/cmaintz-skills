@@ -49,9 +49,14 @@ Run the census and show the user the plan before any agent is spawned:
 node "${CLAUDE_PLUGIN_ROOT}/scripts/codemap/census.mjs"
 ```
 
-Show each `slicePlan` entry as its slice name, paths, file count and the file name it will
-get (FORMAT.md's slug rule), then the three lenses, and the census counts (manifests,
-entrypoints, schemas, env vars). Say which mode phase 2 will use (fan-out or single agent).
+The census `slicePlan` is a proposal from directory layout and co-change, so refine it
+before showing it: merge slices too small to audit alone into the domain they serve, and
+give a slice joined from many paths a short domain name. Its `unsliced` list (tests, docs,
+infra, config) is context for the lens agents, not a slice of its own.
+
+Show each slice as its name, paths, file count and the file name it will get (FORMAT.md's
+slug rule), then the three lenses, and the census counts (manifests, entrypoints, schemas,
+env vars). Say which mode phase 2 will use (fan-out or single agent).
 
 **Wait for the user to confirm or edit the plan.** They may merge slices, split one, rename
 one, or drop a directory that is not code (fixtures, vendored code, docs). Census slicing

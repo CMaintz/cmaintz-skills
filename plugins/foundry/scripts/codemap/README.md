@@ -16,7 +16,7 @@ Files come from `git ls-files --cached --others --exclude-standard`, so gitignor
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--since` | `12 months ago` | History window for `churn`, `coChange` and the slice merge. Any `git log --since` value. |
-| `--threshold` | `0.5` | Minimum coupling degree for a `coChange` pair and for merging slice directories. |
+| `--threshold` | `0.5` | Minimum coupling degree for a `coChange` pair and for merging slices (each measures degree differently, see below). |
 | `--min-shared` | `3` | Minimum shared commits for the same. |
 
 ## Output shape
@@ -57,15 +57,42 @@ Files come from `git ls-files --cached --others --exclude-standard`, so gitignor
   // are skipped as sweeps. Sorted by shared descending.
   "coChange": [{ "a": "src/billing/b.ts", "b": "src/orders/o.ts", "shared": 4, "degree": 1 }],
 
-  // One slice per first-level directory under the source roots (src, app, apps, lib,
-  // packages, services), or per top-level directory when none exist. Files directly in a
-  // source root form a slice named after the root (a flat src/). Directories that
-  // co-change by the same rule as coChange merge into one slice. Dot-directories and
-  // root-level files belong to no slice. Sorted by files descending, then name.
-  // name is the paths joined with "+", so it is unique across slices.
-  "slicePlan": [{ "name": "src/billing+src/orders", "paths": ["src/billing", "src/orders"], "files": 2 }]
+  // A proposal, built in four steps (rules below). name is the slice keys joined with "+",
+  // so it is unique across slices. Sorted by files descending, then name.
+  "slicePlan": [
+    { "name": "src/billing+src/orders", "paths": ["src/billing", "src/orders"], "files": 2 },
+    { "name": "users", "paths": ["src/Application/Users", "src/Domain/Users"], "files": 2 }
+  ],
+
+  // Files in no slice, grouped by directory. reason: "tests" (a test/, tests/, testing/,
+  // __tests__/ or *.Tests/ directory, any case, at any depth), "config" (a dot-directory), "docs" and "infra"
+  // (top-level docs/ or infra/, deploy/, terraform/, helm/ and the like), or "other" (outside
+  // every source root). Root-level files are not listed. Sorted by path.
+  "unsliced": [{ "path": "docs", "reason": "docs", "files": 3 }]
 }
 ```
+
+The slice plan is a starting point for the codemap skill's phase 1, not a final answer:
+
+1. **Exclude.** Files that `unsliced` would list are set aside first, so a fixture tree
+   like `tests/fixtures/src` never reads as source.
+2. **Key each file.** Each top-level directory is descended while it holds only one other
+   directory. From there, a chain of directly nested source roots (`src`, `app`, `apps`,
+   `lib`, `packages`, `services`) is followed, and a file keys on the level below the last
+   one: `backend/src/Api/x.cs` keys on `backend/src/Api`, `frontend/src/app/core/a.ts` on
+   `frontend/src/app/core`. Files directly in a root key on the root (a flat `src/`). Only a
+   chain counts, so a `lib/` inside `scripts/` stays part of that unit. Without a chain, a
+   descended directory acts as a root (`plugins/foundry/skills`); an undescended one is its
+   own slice, unless roots elsewhere in the repo show where the code lives, in which case
+   it is `unsliced` as `other`. A directory with a root keeps its non-root files out too.
+3. **Regroup by repeated names.** A subdirectory name found directly under two or more keys
+   (case-insensitive) becomes one slice named after it, joined by any key whose last segment
+   matches. This turns a layered layout (Api, Application, Domain) into domain slices.
+   Generic names (`common`, `shared`, `utils`, `models`, `core`, ...) never regroup.
+4. **Merge.** Slices merge when they share at least `--min-shared` commits and the shared
+   count over the commits of the *more*-changed slice is at least `--threshold`. That is
+   stricter than `coChange`, which divides by the less-changed side: there a small directory
+   whose few commits all touched two busy ones would score 1.0 against both and chain them.
 
 Detection is regex-based and errs towards false negatives:
 
