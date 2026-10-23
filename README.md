@@ -17,6 +17,9 @@ The skills are namespaced by the plugin: `/foundry:ship`, `/foundry:review`, `/f
 `/foundry:spec`, `/foundry:repo-align`, `/foundry:loop-report`, `/foundry:pr-ci-watch` and
 `/foundry:foundry-secret`.
 
+Only `plugins/foundry/` is installed; the rest of the repo (CI, docs, `mise.toml`) is
+for developing the plugin. Paths below are relative to `plugins/foundry/`.
+
 ## Why hooks and not documentation
 
 A habit you have to *remember* isn't a habit. Prose in `CLAUDE.md` is advisory and fades as the context fills up; a hook is enforcement. There are three mechanisms, and picking the wrong one is why most "AI coding standards" documents get ignored:

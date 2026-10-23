@@ -4,7 +4,7 @@
 #   Usage: tests/pre-commit.test.sh
 set -euo pipefail
 
-HOOK="$(cd "$(dirname "$0")/.." && pwd)/hooks/pre-commit"
+HOOK="$(cd "$(dirname "$0")/../plugins/foundry" && pwd)/hooks/pre-commit"
 # The hook skips itself under CI; this test exercises it there too.
 unset CI
 
