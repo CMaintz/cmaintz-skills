@@ -41,17 +41,34 @@ if [ -d .claude/worktrees ] && ! git check-ignore -q .claude/worktrees 2>/dev/nu
     printf '\n%s\n' '.claude/worktrees/' >> "$gd/info/exclude"
 fi
 
-# A repo opted in (has .habit-hooks/) but the tool isn't installed: DON'T fail green
-# silently — that's the exact trap this system exists to avoid. Warn loudly (non-
-# blocking) with how to fix, then allow the stop; we can't run the check from here.
-if ! command -v habit-hooks >/dev/null 2>&1; then
-  printf '%s\n' "habit-hooks-guard: WARNING — this repo has .habit-hooks/ but 'habit-hooks' is not on PATH, so the in-loop structural-smell check did NOT run (CI still enforces it). Install it so local mirrors CI: pip install --user habit-hooks <lang-plugin> (+ standalone PMD for Java), or add its bin dir to PATH." >&2
-  exit 0
-fi
+# The habit-hooks a package's mise.toml pins (HABIT_HOOKS_PLUGIN/VERSION, installed by
+# setup:habit-hooks), so this runs the same version as gate and CI. A bare habit-hooks is
+# whatever PATH finds first, often an older global pip install in ~/.local/bin above.
+hh_for() {
+  pin=""
+  if command -v mise >/dev/null 2>&1 && [ -f "$1/mise.toml" ]; then
+    # printenv prints one value per line and fails if either is unset.
+    pin=$(cd "$1" && mise exec -- printenv HABIT_HOOKS_PLUGIN HABIT_HOOKS_VERSION 2>/dev/null | paste -sd- -) || pin=""
+  fi
+  if [ -n "$pin" ]; then
+    for c in "$HOME/.local/opt/$pin/bin/habit-hooks" "$HOME/.local/opt/$pin/Scripts/habit-hooks.exe"; do
+      [ -x "$c" ] && { printf '%s\n' "$c"; return; }
+    done
+  fi
+  printf '%s\n' habit-hooks
+}
 
 fail=0; report=""
 for d in $dirs; do
-  out=$(cd "$d" && habit-hooks --branch 2>&1); rc=$?
+  hh=$(hh_for "$d")
+  # A repo opted in (has .habit-hooks/) but the tool isn't installed: DON'T fail green
+  # silently — that's the exact trap this system exists to avoid. Warn loudly (non-
+  # blocking) with how to fix, then allow the stop; we can't run the check from here.
+  if [ "$hh" = habit-hooks ] && ! command -v habit-hooks >/dev/null 2>&1; then
+    printf '%s\n' "habit-hooks-guard: WARNING — this repo has .habit-hooks/ but 'habit-hooks' is not on PATH, so the in-loop structural-smell check did NOT run (CI still enforces it). Install it so local mirrors CI: pip install --user habit-hooks <lang-plugin> (+ standalone PMD for Java), or add its bin dir to PATH." >&2
+    exit 0
+  fi
+  out=$(cd "$d" && "$hh" --branch 2>&1); rc=$?
   # A JS package never installed here (fresh clone or worktree): its sensors report
   # eslint/knip/ts-morph as "not installed", which nudges the agent into
   # `npm install --save-dev <tool>`. The deps are declared, just not installed.

@@ -33,6 +33,7 @@ description = "Node unit tests and the pre-commit hook test"
 run = [
     "node --test \"scripts/**/*.test.mjs\"",
     "bash tests/pre-commit.test.sh",
+    "bash tests/habit-hooks-guard.test.sh",
 ]
 
 [tasks.audit]
