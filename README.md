@@ -38,6 +38,7 @@ A habit you have to *remember* isn't a habit. Prose in `CLAUDE.md` is advisory a
 - `review`: one reviewer instead of three. Correctness, standards and spec lenses in parallel fresh sub-agents, scaled to the size of the change (more below).
 - `spec`: turns a rough idea into a testable spec through a short back-and-forth, then files it as an `agent:ready` issue.
 - `feature`: claims a ready ticket, implements it in its own worktree, loops against `mise run gate` until green, checks the acceptance criteria, and hands off to `ship`.
+- `codemap`: maps the repo into `docs/codemap/`, an index plus one file per domain slice and three lenses, every claim cited and SHA-stamped and spot-checked by a verifier. `codemap refresh` re-audits only the slices whose cited files changed. Describes, never judges.
 - `repo-align`: pays down formatting and structural-smell debt across a repo, one small PR at a time.
 - `loop-report`: reads Foundry's verb telemetry to show where the gate spends time and whether the loop is converging or thrashing. Read-only.
 - `pr-ci-watch`: loops a PR's CI result back without blocking. Spawns a Herdr monitor pane that watches the checks while the agent keeps working, then reads the verdict and, on failure, fixes, pushes and re-watches until green. The non-blocking form of `ship`'s watch-CI step; falls back to a background task outside Herdr.
