@@ -82,7 +82,7 @@ The sanctioned path is **`foundry-ship-pr`**: it pushes the branch, opens a draf
 "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-ship-pr" --body-file <file> [--title-file <file>]
 ```
 
-The PR URL lands in `.foundry/pr-url` within seconds of launch; read it there to reference the PR while CI runs. The script's exit mirrors the CI verdict (0 passed, 1 failed, 2 pending/no-checks).
+The PR URL lands in `.foundry/pr-url` within seconds of launch; read it there to reference the PR while CI runs. The script's exit mirrors the CI verdict (0 passed, 1 failed, 2 pending/no-checks); 3 means the push itself was rejected, so rebase or fix the branch rather than looking for CI logs.
 
 If the change **loosens** the gate alongside source (grows a suppression baseline, lowers a threshold, edits a lint rule) the PR needs the `ruleset-change` label or `ruleset-guard` will fail it. Tightening does not: a baseline that only shrank because `mise run fix` pruned it ships with the source fix, no label needed. That is the rule working - do not route around it by splitting the commit dishonestly.
 
@@ -90,7 +90,7 @@ If the change **loosens** the gate alongside source (grows a suppression baselin
 
 A green local `gate` is necessary, not sufficient. CI runs checks your six-verb gate does **not**: the smells-vs-baseline job, secret scan, SAST (semgrep/CodeQL), dependency review. So when the background `foundry-ship-pr` returns, you **must act on its result** - "I pushed, so it's green" is exactly how a red PR gets left behind.
 
-On failure, take the failing-step logs it printed and run the observe->fix->verify loop: fix the real cause, commit, and re-launch `foundry-ship-pr` (idempotent - it finds the existing PR and re-watches). For a finer-grained or Herdr-pane watch, **`foundry:pr-ci-watch`** owns that; `foundry-ship-pr` is the default because it is the create path too. Genuinely baseline-only bot PRs are the only ones that legitimately skip the watch.
+On failure, take the failing-step logs it printed and run the observe->fix->verify loop: fix the real cause, commit, and re-launch `foundry-ship-pr` (idempotent - it pushes the new commit, finds the existing PR and watches that commit's checks). For a finer-grained or Herdr-pane watch, **`foundry:pr-ci-watch`** owns that; `foundry-ship-pr` is the default because it is the create path too. Genuinely baseline-only bot PRs are the only ones that legitimately skip the watch.
 
 ## Stop conditions
 
