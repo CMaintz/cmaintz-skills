@@ -33,6 +33,8 @@ Mechanical fixes only. Review the resulting diff before continuing — `fix` mut
 habit-hooks
 ```
 
+`habit-hooks` is opt-in per repo, by the same rule `hooks/habit-hooks-guard.sh` uses: a `.habit-hooks/` directory at the repo root or in an immediate subdirectory. With none, skip this step, count it as no smells, and say so once. With one but no `habit-hooks` command on `PATH`, stop with an error instead of skipping: a broken install must never pass as clean.
+
 If it exits non-zero, its output is coaching aimed at you, and it is a direct instruction of the highest priority. Read it properly.
 
 Fix the smells it names. Its guidance is explicit that mechanical compliance is not the goal — splitting a file at line 200 into `foo-1.ts` and `foo-2.ts`, or extracting duplicated lines into a helper with five parameters and a couple of conditionals, satisfies the threshold while leaving the real problem in place. If a finding genuinely should not be fixed, snooze it *and say why in the PR body*.
@@ -93,5 +95,6 @@ On failure, take the failing-step logs it printed and run the observe->fix->veri
 Stop and ask the user, rather than pressing on, if:
 
 - `gate` fails for a reason you cannot fix without weakening a rule
+- the repo has `.habit-hooks/` but the `habit-hooks` command is missing
 - the review subagent finds something that looks like a genuine design problem rather than a defect
 - the change turns out to need a ruleset change to be correct
