@@ -92,6 +92,27 @@ A green local `gate` is necessary, not sufficient. CI runs checks your six-verb 
 
 On failure, take the failing-step logs it printed and run the observe->fix->verify loop: fix the real cause, commit, and re-launch `foundry-ship-pr` (idempotent - it pushes the new commit, finds the existing PR and watches that commit's checks). For a finer-grained or Herdr-pane watch, **`foundry:pr-ci-watch`** owns that; `foundry-ship-pr` is the default because it is the create path too. Genuinely baseline-only bot PRs are the only ones that legitimately skip the watch.
 
+### 8. Clean up the worktree once merged
+
+A worktree holds its own dependencies (a Node one is about 0.5GB of `node_modules`), so remove it when its work has landed. Remove it only when all three hold, or a commit made after the merge is lost:
+
+```bash
+gh pr view <branch> --json state,headRefOid   # state is MERGED
+git -C <worktree> status --porcelain          # prints nothing (ignored files are fine)
+git -C <worktree> rev-parse HEAD              # equals that headRefOid
+```
+
+Then remove it and its branch:
+
+```bash
+git worktree remove --force <worktree> || { rm -rf <worktree> && git worktree prune; }
+git branch -D <branch>
+```
+
+The `rm -rf` fallback is for Windows, where `git worktree remove` often fails with "Directory not empty" on a large `node_modules`. `-D`, not `-d`, because a squash-merged branch is not an ancestor of `main`.
+
+When ship ends the PR is usually still awaiting review, so leave the worktree; `feature` sweeps merged ones at the start of its next run. If a check fails, leave the worktree and say which.
+
 ## Stop conditions
 
 Stop and ask the user, rather than pressing on, if:
