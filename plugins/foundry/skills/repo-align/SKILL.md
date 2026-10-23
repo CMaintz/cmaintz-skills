@@ -33,11 +33,11 @@ Before touching code:
    return, say why in the claim issue.
 2. **Claim it atomically.** Prefer an open `align` issue for that target that is
    `agent:ready`:
-   `gh issue edit <n> --add-label agent:working --remove-label agent:ready --add-assignee @me`,
+   `gh issue edit <n> --add-label agent:working --remove-label agent:ready --remove-assignee @me`,
    then **re-read the issue and confirm you hold it**. If it's already `agent:working`,
    another session has it — pick a different target.
 3. **No issue for the target yet? Create then confirm.** `gh issue create --label
-   "align,agent:working" --assignee @me --title "align: <path>"` (body: acceptance =
+   "align,agent:working" --title "align: <path>"` (body: acceptance =
    gate green from a clean tree **and** `<path>` drops from `snooze.json` on prune;
    scope = behaviour-preserving, this target only). Re-list `--label align`; if two
    now name the same target, the **lower issue number wins** — close the dup, pick
