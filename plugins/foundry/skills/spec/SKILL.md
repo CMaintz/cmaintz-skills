@@ -31,6 +31,9 @@ Interview the user. Don't jump to a solution; understand the problem first. Ask 
   relevant modules.
 - **The edges** — the empty state, the error path, the concurrent case. These are where
   under-specified tickets go wrong.
+- **Done beyond behaviour** - what else has to be true before you would call it done,
+  that no acceptance test observes: a doc updated, a consumer told, a follow-up ticket
+  filed, an old path removed. Ask rather than assume; "nothing else" is a fine answer.
 
 Ask **one focused round at a time**; reflect back what you heard. Stop when you can state
 the change in a sentence and list what would prove it done.
@@ -44,6 +47,11 @@ and, where possible, machine-checkable.
 - Good: `- [ ] POST /apply with a missing CV returns 422 and the body names the field`
 - Weak: `- [ ] the apply flow is robust` — not checkable; rewrite or drop it.
 
+Draft the done-conditions from step 1 as a separate **Definition of Done** checklist, not
+folded into the acceptance criteria: the AC say what the change does, the DoD says what
+else has to be true. When step 1 turned up nothing, write the sentinel
+`None beyond the acceptance criteria.` so the absence is a decision, not an omission.
+
 Force an explicit **scope-out** ("does *not* touch X"): it's the single highest-leverage
 line for stopping an agent (or a human) sprawling. If the idea is really several changes,
 say so and split it into multiple tickets, noting the order/dependencies — one ticket is
@@ -54,14 +62,24 @@ one cohesive, reviewable change.
 Self-check the draft, and fix what fails:
 
 - Every acceptance criterion is verifiable — no "nice", "clean", "robust".
+- Every DoD item is verifiable, and none restates what the gate or `ship` already
+  enforces on every change ("the gate is green", "tests pass", "it was reviewed", "CI
+  passes", "a PR is open"). Drop those; rewrite or drop anything that can't be checked.
 - Scope-out is present and specific.
 - Pointers name real files/modules the agent should start from.
 - The whole thing is one cohesive change, sized to a single PR.
 
 ### 4. Confirm with the user
 
-Show the drafted ticket in full and iterate until they approve. This is the last cheap
-place to change direction — cheaper than a `feature` loop or a review round.
+Show the drafted ticket in full, Definition of Done included, and iterate until they
+approve it. This is the last cheap place to change direction - cheaper than a `feature`
+loop or a review round.
+
+Step 5 runs only on an explicit approval of the whole ticket ("approved", "file it",
+"yes, that's the ticket"). An ambiguous reply is not approval: "looks fine I guess", a
+yes with a change attached, a question, or silence. Apply any change, show the ticket
+again, and ask directly whether to file it. The DoD is what `feature` and `review` will
+hold the work to, so the user has to have agreed to it, not just seen it.
 
 ### 5. File it
 
@@ -77,9 +95,11 @@ File the issue on the `agent-feature` form so the schema is enforced, and stamp 
 gh issue create --title "<intent, one line>" --label agent:ready --body-file <spec.md>
 ```
 
-The body follows the form's sections (Intent / Acceptance criteria / Scope boundaries /
-Pointers). If `gh` or a GitHub remote is unavailable, write the ticket to `tickets/<slug>.md`
-(the `feature` fallback source) instead, and say so.
+The body follows the form's sections (Intent / Acceptance criteria / Definition of Done /
+Scope boundaries / Pointers). The Definition of Done section is never empty or left out:
+it holds the approved checklist or the sentinel `None beyond the acceptance criteria.`
+If `gh` or a GitHub remote is unavailable, write the ticket to `tickets/<slug>.md` (the
+`feature` fallback source) instead, and say so.
 
 ### 6. Hand off
 
@@ -99,6 +119,9 @@ enforced by `ISSUE_TEMPLATE/agent-feature.yml`):
   diff against.
 - **Acceptance criteria** — a `- [ ]` checklist, each item verifiable. The load-bearing
   field: `feature`'s `verify` step and `ship`'s spec review both walk it item by item.
+- **Definition of Done** - a `- [ ]` checklist of ticket-specific done-conditions that are
+  not behaviour, each verifiable, none restating the gate or `ship`. Or the sentinel
+  `None beyond the acceptance criteria.` A ticket without this section is not claimable.
 - **Scope boundaries** — explicit "do not touch X".
 - **Pointers** — files, modules, prior art to start from.
 

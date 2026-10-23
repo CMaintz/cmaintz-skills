@@ -78,7 +78,12 @@ single pass still applies this: review the diff, not your memory of writing it.)
      structural-smell vocabulary, plus any `build-project-review` criteria. Not
      generic style a linter already covers.
    - **Spec** — does the diff do what the issue asked? Missing requirements, and
-     scope creep (things done that nobody asked for).
+     scope creep (things done that nobody asked for). Check it against the
+     acceptance criteria and the Definition of Done, and name each DoD item the
+     diff leaves unmet. A DoD item that lives outside the diff (a consumer told, a
+     follow-up ticket filed) is listed as not checkable from the diff, not as
+     unmet: `feature`'s verify step owns it. A DoD of
+     `None beyond the acceptance criteria.` adds nothing to check.
 
 4. **Merge.** Dedupe overlaps across lenses. **Drop anything the deterministic
    gate already catches** (lint, types, tests, coverage). Assign severity, then
@@ -96,4 +101,4 @@ single pass still applies this: review the diff, not your memory of writing it.)
   it, don't report it.
 - **Fewer, higher-confidence findings** beat an exhaustive list of nits (except
   at `high`, where surfacing the uncertain ones is the point).
-- **If you can't see the spec, say so** — never invent acceptance criteria.
+- **If you can't see the spec, say so** - never invent acceptance criteria or DoD items.
