@@ -29,7 +29,7 @@ An agent is fast and confident, and neither makes it right. These skills and hoo
 
 **The flywheel.** After a session, `learn` routes each lesson to the strongest layer that can hold it. A mistake made once becomes a hook or a rule the next session can't skip.
 
-The full write-up behind the method: [Agentic Engineering: Harnesses and Workflows for Teams](https://github.com/CMaintz/foundry/blob/main/docs/agentic-engineering.md).
+The full write-up behind the method: [Agentic Engineering: Harnesses and Workflows for Teams](https://github.com/CMaintz/foundry/blob/main/docs/agentic-engineering/README.md).
 
 **How the two repos fit:** [Foundry](https://github.com/CMaintz/foundry) is the shared, deterministic gate: six `mise` verbs (`fix`, `lint`, `typecheck`, `test`, `audit`, `gate`) and the CI workflows that run them, one rule set placed in-loop, pre-push and in CI. This repo is what an agent does with that gate: skills for the procedure, hooks for the reflexes. The seam between them is [CONTRACT.md](./CONTRACT.md), copied verbatim into both.
 
@@ -61,7 +61,7 @@ The hooks run underneath every step.
 - `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), walks every acceptance criterion and DoD item, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
 - `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review against the linked issue, a conventional commit, then a draft PR through `foundry-ship-pr`, which watches CI and marks the PR ready once green. Review happens before the PR exists, which also keeps API keys out of CI.
 - `review`: one reviewer instead of three. Correctness, standards and spec lenses in parallel fresh sub-agents, scaled to the size of the change. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
-- `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. A Foundry `codemap:check` task that flags dead citations is planned ([foundry#111](https://github.com/CMaintz/foundry/issues/111)).
+- `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. Foundry's advisory `mise run codemap:check` fails when a citation no longer resolves and reports how many commits each slice is behind.
 - `pr-ci-watch`: loops a PR's CI result back without blocking. Watches the checks in a Herdr pane (or a background task outside Herdr) while the agent keeps working, and on failure fixes, pushes and re-watches.
 - `loop-report`: reads Foundry's verb telemetry to show where the gate spends time and whether the loop is converging or thrashing. Read-only.
 - `repo-align`: pays down formatting and structural-smell debt across a repo, one small PR at a time.
