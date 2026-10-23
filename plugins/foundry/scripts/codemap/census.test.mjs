@@ -223,6 +223,108 @@ test('files directly under a source root form a slice of their own, named apart 
   );
 });
 
+test('a source root nested below the top level slices by its own children', () => {
+  const root = fixture([{ 'backend/src/Api/a.cs': '', 'backend/src/Domain/b.cs': '', 'backend/src/Domain/c.cs': '' }]);
+
+  assert.deepEqual(
+    census(root).slicePlan.map((s) => [s.name, s.paths]),
+    [['backend/src/Domain', ['backend/src/Domain']], ['backend/src/Api', ['backend/src/Api']]],
+  );
+});
+
+test('without a source root, a directory that only wraps one other is descended and its children slice', () => {
+  const root = fixture([{
+    'plugins/foundry/skills/ship.md': '',
+    'plugins/foundry/skills/spec.md': '',
+    'plugins/foundry/hooks/guard.sh': '',
+    'plugins/foundry/scripts/report.mjs': '',
+  }]);
+
+  assert.deepEqual(
+    census(root).slicePlan.map((s) => s.name),
+    ['plugins/foundry/skills', 'plugins/foundry/hooks', 'plugins/foundry/scripts'],
+  );
+});
+
+test('a source root inside one top-level directory does not stop wrapper descent in another', () => {
+  const root = fixture([{
+    'plugins/foundry/skills/ship.md': '',
+    'plugins/foundry/skills/spec.md': '',
+    'plugins/foundry/hooks/guard.sh': '',
+    'plugins/foundry/scripts/lib/x.mjs': '',
+    'web/src/app.ts': '',
+  }]);
+
+  assert.deepEqual(
+    census(root).slicePlan.map((s) => s.name),
+    ['plugins/foundry/skills', 'plugins/foundry/hooks', 'plugins/foundry/scripts', 'web/src'],
+  );
+});
+
+test('a folder name repeated across layers becomes one slice named after it, except generic names', () => {
+  const root = fixture([{
+    'src/Api/Program.cs': '',
+    'src/Api/Orders/OrdersEndpoint.cs': '',
+    'src/Domain/Orders/Order.cs': '',
+    'src/Domain/Users/User.cs': '',
+    'src/Domain/Common/Entity.cs': '',
+    'src/Application/Users/Register.cs': '',
+    'src/Application/Common/Errors.cs': '',
+    'web/src/orders/orders.page.ts': '',
+  }]);
+
+  assert.deepEqual(
+    census(root).slicePlan.map((s) => [s.name, s.paths]),
+    [
+      ['orders', ['src/Api/Orders', 'src/Domain/Orders', 'web/src/orders']],
+      ['users', ['src/Application/Users', 'src/Domain/Users']],
+      ['src/Api', ['src/Api']],
+      ['src/Application', ['src/Application']],
+      ['src/Domain', ['src/Domain']],
+    ],
+  );
+});
+
+test('tests, docs, infra and dot-directories are reported as unsliced, never as slices', () => {
+  const root = fixture([{
+    'src/orders/o.ts': '',
+    'tests/fixtures/src/x.ts': '',
+    'backend/tests/Api.Tests/t.cs': '',
+    'src/Api.Tests/Tests/t.cs': '',
+    'backend/mise.toml': '',
+    'docs/API.md': '',
+    'infra/main.bicep': '',
+    '.github/workflows/gate.yml': '',
+    'README.md': '',
+  }]);
+
+  const { slicePlan, unsliced } = census(root);
+
+  assert.deepEqual(slicePlan.map((s) => s.name), ['src/orders']);
+  assert.deepEqual(unsliced, [
+    { path: '.github', reason: 'config', files: 1 },
+    { path: 'backend', reason: 'other', files: 1 },
+    { path: 'backend/tests', reason: 'tests', files: 1 },
+    { path: 'docs', reason: 'docs', files: 1 },
+    { path: 'infra', reason: 'infra', files: 1 },
+    { path: 'src/Api.Tests', reason: 'tests', files: 1 },
+    { path: 'tests', reason: 'tests', files: 1 },
+  ]);
+});
+
+test('a small directory that changes with two busy ones does not bridge them into one slice', () => {
+  const busy = Array.from({ length: 10 }, (_, i) => ({ 'src/a/a.ts': `a${i}` }))
+    .concat(Array.from({ length: 10 }, (_, i) => ({ 'src/b/b.ts': `b${i}` })));
+  const bridge = Array.from({ length: 3 }, (_, i) => ({ 'src/a/a.ts': `x${i}`, 'src/b/b.ts': `x${i}`, 'src/c/c.ts': `${i}` }));
+  const root = fixture([...busy, ...bridge]);
+
+  const { slicePlan, coChange } = census(root);
+
+  assert.deepEqual(slicePlan.map((s) => s.name), ['src/a', 'src/b', 'src/c']);
+  // File-level coupling still measures against the less-changed side, so c's pairs show up.
+  assert.ok(coChange.some((p) => p.a === 'src/a/a.ts' && p.b === 'src/c/c.ts'));
+});
+
 test('a repo with no commits yet still inventories its files', () => {
   const root = mkdtempSync(join(tmpdir(), 'census-'));
   roots.push(root);
