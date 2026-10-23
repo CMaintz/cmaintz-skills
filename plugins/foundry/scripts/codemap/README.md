@@ -11,7 +11,9 @@ Run it anywhere inside a git work tree; it inventories the whole tree from the t
 A flag takes its value as the next argument or after `=`; a missing or non-numeric value
 exits 2 with the reason on stderr.
 Files come from `git ls-files --cached --others --exclude-standard`, so gitignored paths
-(`node_modules`, `bin`, `obj`) never appear. Every path is repo-relative and uses `/`.
+(`node_modules`, `bin`, `obj`) never appear. Vendored code is left out of every field too:
+files marked `linguist-vendored` in `.gitattributes`, and anything under a `vendor/` or
+`third_party/` directory. Every path is repo-relative and uses `/`.
 
 | Flag | Default | Meaning |
 | --- | --- | --- |

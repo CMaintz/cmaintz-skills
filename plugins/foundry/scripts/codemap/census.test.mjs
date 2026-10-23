@@ -153,6 +153,23 @@ test('a gitignored file is never reported, even when it would match every detect
   assert.match(out, /KEPT/);
 });
 
+test('vendored code, by linguist-vendored or a vendor directory, is not inventoried as the app', () => {
+  const root = fixture([{
+    '.gitattributes': 'scripts/jev/vendor-copy/** linguist-vendored\n',
+    'scripts/jev/vendor-copy/package.json': '{"name":"copied","bin":"cli.js"}',
+    'scripts/jev/vendor-copy/env.js': 'process.env.COPIED_KEY;\n',
+    'vendor/lib/server.js': "app.get('/vendored', h);\n",
+    'third_party/x/Program.cs': '',
+    'src/server.js': "app.get('/own', h); process.env.OWN_KEY;\n",
+  }]);
+
+  const { manifests, entrypoints, envVars } = census(root);
+
+  assert.deepEqual(manifests, []);
+  assert.deepEqual(entrypoints.map((e) => e.route ?? e.symbol), ['/own']);
+  assert.deepEqual(envVars.map((v) => v.name), ['OWN_KEY']);
+});
+
 test('schemas and env vars are detected from their conventional sources', () => {
   const root = fixture([
     {

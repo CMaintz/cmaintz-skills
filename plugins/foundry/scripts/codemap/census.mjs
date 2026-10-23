@@ -34,6 +34,19 @@ function listFiles(root) {
     .sort(byText);
 }
 
+// Copied third-party code (a vendored client, a Go vendor tree) is not the app's own, so its
+// manifests, routes and env vars would read as features of the repo being mapped.
+const VENDOR_DIR = /(^|\/)(vendor|third_party)\//;
+
+/** Files that are not vendored, by directory convention or the `linguist-vendored` attribute. */
+function ownFiles(root, files) {
+  if (files.length === 0) return files;
+  const out = git(root, ['check-attr', '-z', '--stdin', 'linguist-vendored'], `${files.join('\0')}\0`).split('\0');
+  const vendored = new Set();
+  for (let i = 0; i + 2 < out.length; i += 3) if (out[i + 2] === 'set' || out[i + 2] === 'true') vendored.add(out[i]);
+  return files.filter((f) => !vendored.has(f) && !VENDOR_DIR.test(f));
+}
+
 function read(root, path) {
   try {
     const full = posix.join(root.replaceAll('\\', '/'), path);
@@ -64,7 +77,7 @@ function isSchema(path) {
 export function census(root = process.cwd(), opts = {}) {
   const options = { ...DEFAULTS, ...opts };
   const top = git(root, ['rev-parse', '--show-toplevel']).trim();
-  const files = listFiles(top);
+  const files = ownFiles(top, listFiles(top));
 
   const entrypoints = [];
   const env = new Map();
