@@ -4,7 +4,7 @@ A deterministic inventory of a repo, the factual starting point for the codemap 
 Node 22, no dependencies, reads only, prints JSON to stdout.
 
 ```bash
-node scripts/codemap/census.mjs [--since "12 months ago"] [--threshold 0.5] [--min-shared 3]
+node plugins/foundry/scripts/codemap/census.mjs [--since "12 months ago"] [--threshold 0.5] [--min-shared 3]
 ```
 
 Run it anywhere inside a git work tree; it inventories the whole tree from the top level.
@@ -78,3 +78,21 @@ Detection is regex-based and errs towards false negatives:
 - Test files (`*.test.*`, `*.spec.*`, and anything under `test/`, `tests/` or
   `__tests__/`) are skipped for `entrypoints` and `envVars`, since their fixtures would
   read as the app's own.
+
+## Adding an ecosystem
+
+Each ecosystem's detection lives in its own file under `detectors/`, exporting one or more
+detectors of the shape `{ matches(path), entrypoints(path, text), envPattern }` (`js.mjs`
+exports two: source files and `package.json`). `envPattern` is a global regex whose first
+non-empty group is an env var name, or `null`. The first detector whose `matches` accepts a
+file handles it, so claim files by a name or extension no other detector uses.
+
+To add one:
+
+- Add the file, and import it and list it in `DETECTORS` in `census.mjs`.
+- Document any new `kind` or env var source under Output shape, and its rules under the
+  detection notes above.
+- If the ecosystem names its tests differently (`test_*.py`, `*Test.java`), extend `isTest`
+  in `census.mjs`, or its fixtures will read as the app's own entrypoints.
+
+Churn, co-change and the slice plan live in `history.mjs` and need no change.
