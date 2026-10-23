@@ -29,14 +29,14 @@ Resolve the ticket: from `<ref>` in supervised mode, or the oldest `agent:ready`
 
 **Completeness check** - the ticket has an intent, an acceptance-criteria checklist, a Definition of Done (a `- [ ]` checklist, or the sentinel `None beyond the acceptance criteria.`), and scope boundaries (the [schema](#the-ticket)). A missing or empty Definition of Done section fails the check: only the sentinel says "nothing extra". In puller mode, a ticket that fails is skipped. In supervised mode, interview the user to fill the gaps, then continue.
 
-**Claim** before writing a line of code. Pick the slug first, since the claim marker names the branch and worktree that step 2 creates:
+**Claim** before writing a line of code. Pick the slug first, since the claim marker names the branch and worktree that step 2 creates. The claim unassigns the owner: an assignee means the ticket waits on a human (filed by `spec`, or blocked), and a working ticket waits on no one.
 
 ```bash
-gh issue edit <n> --add-label agent:working --remove-label agent:ready --add-assignee @me
+gh issue edit <n> --add-label agent:working --remove-label agent:ready --remove-assignee @me
 gh issue comment <n> --body "claimed by feat/<slug>-<n> at ../_wt/<slug>-<n>"
 ```
 
-Then **re-read** the issue and confirm you hold it: `agent:working`, assigned to you, and the latest claim marker is yours. Every session shares one GitHub identity, so only the marker tells two sessions apart. If it moved under you, or the latest marker names another worktree, another worker won the race - abandon it and, in puller mode, try the next ticket. The latest marker on a ticket:
+Then **re-read** the issue and confirm you hold it: `agent:working` and the latest claim marker is yours. Every session shares one GitHub identity, so only the marker tells two sessions apart. If it moved under you, or the latest marker names another worktree, another worker won the race - abandon it and, in puller mode, try the next ticket. The latest marker on a ticket:
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<n>/comments" --jq '.[].body | select(startswith("claimed by "))' | tail -n 1
@@ -44,7 +44,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/<n>/comments" --jq '.[].body | se
 
 It pages through every comment, so the marker is found on a long thread too, and prints nothing when the ticket has no marker.
 
-**WIP = 1 per session.** This session's worktree is the one it created in step 2, or entered to resume a ticket; a session with none holds nothing. Before claiming, list the `agent:working` tickets assigned to you (`gh issue list --label agent:working --assignee @me --json number`) and read each one's latest marker. If one names this session's worktree, finish or release it first. A marker naming another worktree belongs to a sibling session, and a ticket with no marker belongs to no session; neither blocks this one. The limit is per session, not per machine, so parallel sessions in their own worktrees can each work a ticket while each still holds only one.
+**WIP = 1 per session.** This session's worktree is the one it created in step 2, or entered to resume a ticket; a session with none holds nothing. Before claiming, list the `agent:working` tickets (`gh issue list --label agent:working --json number`) and read each one's latest marker. If one names this session's worktree, finish or release it first. A marker naming another worktree belongs to a sibling session, and a ticket with no marker belongs to no session; neither blocks this one. The limit is per session, not per machine, so parallel sessions in their own worktrees can each work a ticket while each still holds only one.
 
 ### 2. Isolated worktree
 
@@ -112,16 +112,16 @@ Invoke **`foundry:ship`**. It re-runs the gate as the final authority, reviews t
 When the inner loop exhausts, an acceptance criterion or DoD item is unmet, or `ship` hits a stop condition, escalate **durably** - the thread is the memory, an in-session explanation dies with the session:
 
 1. Post the stuck-state to the issue thread: what was attempted, the failing verbs, and the last `gate` output.
-2. **Then** flip `agent:working` → `agent:blocked` and unassign.
+2. **Then** flip `agent:working` → `agent:blocked` and assign it back to the owner, who has to unblock it.
 
 ```bash
 gh issue comment <n> --body-file <stuck-state>
-gh issue edit <n> --add-label agent:blocked --remove-label agent:working --remove-assignee @me
+gh issue edit <n> --add-label agent:blocked --remove-label agent:working --add-assignee @me
 ```
 
 ## Stale-claim recovery
 
-Before claiming in puller mode, reset abandoned claims: any `agent:working` ticket **inactive for over 2 hours** returns to `agent:ready` (unassigned), and is **resumed** from its thread + any open PR — not restarted. This is what stops one dead session (a crash, or the human's usage running out) from stranding a ticket forever.
+Before claiming in puller mode, reset abandoned claims: any `agent:working` ticket **inactive for over 2 hours** returns to `agent:ready` (assigned back to the owner, as `spec` filed it), and is **resumed** from its thread + any open PR — not restarted. This is what stops one dead session (a crash, or the human's usage running out) from stranding a ticket forever.
 
 Key off **inactivity, not "has no branch/PR"** — a session that already opened a PR then died must still be recoverable. A dead session can't release its own claim, so recovery has to be passive and time-based, done by the next puller pass. Measure inactivity as the most recent of: the issue's last timeline event, its linked PR's last update, or the working branch's last commit — reclaim only if that is older than 2 hours:
 

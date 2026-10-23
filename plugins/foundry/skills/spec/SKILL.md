@@ -107,10 +107,12 @@ Ensure the labels exist (idempotent; GitHub silently drops an unknown label):
 bash scripts/setup-labels.sh 2>/dev/null || true
 ```
 
-File the issue on the `agent-feature` form so the schema is enforced, and stamp it ready:
+File the issue on the `agent-feature` form so the schema is enforced, stamp it ready, and
+assign it to the owner so it shows in their queue until an agent claims it (the claim in
+`feature` removes the assignee):
 
 ```bash
-gh issue create --title "<intent, one line>" --label agent:ready --body-file <spec.md>
+gh issue create --title "<intent, one line>" --label agent:ready --assignee @me --body-file <spec.md>
 ```
 
 The body follows the form's sections (Intent / Acceptance criteria / Definition of Done /
