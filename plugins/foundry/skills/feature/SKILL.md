@@ -54,6 +54,8 @@ One ticket, one worktree, one branch off `origin/main`, one PR — matching `col
 git worktree add -b feat/<slug>-<n> ../_wt/<slug>-<n> origin/main
 ```
 
+Before creating it, sweep finished worktrees: for each entry in `git worktree list` other than the main checkout, apply `ship`'s step 8 checks and remove the ones that pass. A PR usually merges after the session that opened it has ended, so this sweep is what actually frees the disk. Worktrees that fail a check (an open PR, no PR, uncommitted work) stay.
+
 Work only in that worktree so the main checkout stays untouched. Pinned tools (mise tools, the habit-hooks venv, PMD) are installed once per machine and shared, but a new worktree has neither mise trust nor the project's own dependencies. Run `mise trust`, `mise install`, then the repo's dependency install (`npm ci` for Node); `mise install` does not create `node_modules`, and without it the TypeScript smell sensors report their tools as missing instead of checking anything.
 
 **Read the codemap slices, when the repo has one.** If `docs/codemap/INDEX.md` exists, read every slice whose citations overlap the ticket's Pointers (the same file, a pointer under a cited directory, or a cited file under a pointer directory) before implementing, so the change follows the flows the map traced rather than rediscovering them. The citation grammar is in the `codemap` skill's `FORMAT.md`. For each slice read, check whether its cited files changed since its stamped `sha:`, the same way `codemap refresh` does:
