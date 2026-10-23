@@ -214,6 +214,47 @@ test('vendored code, by linguist-vendored or a vendor directory, is not inventor
   assert.deepEqual(envVars.map((v) => v.name), ['OWN_KEY']);
 });
 
+test('runtime entrypoints: workflows, containers, compose services, IaC, agent hooks, git hooks and scripts', () => {
+  const hooks = {
+    hooks: {
+      PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'bash "${CLAUDE_PLUGIN_ROOT}"/hooks/guard.sh' }] }],
+      Stop: [{ hooks: [{ type: 'command', command: 'bash "${CLAUDE_PLUGIN_ROOT}"/hooks/stop.sh', timeout: 60 }] }],
+    },
+  };
+  const root = fixture([{
+    '.github/workflows/gate.yml': 'name: Gate\non: [push]\njobs: {}\n',
+    '.github/workflows/deploy.yaml': 'on: push\njobs: {}\n',
+    Dockerfile: 'FROM node\nENTRYPOINT ["node", "server.js"]\n',
+    'docker-compose.yml': 'services:\n  api:\n    image: x\n  db:\n    image: postgres\nvolumes:\n  data: {}\n',
+    'deploy/compose.yaml': 'services:\n    web:\n        image: x\n# the queue worker\n    worker:\n        image: y\n',
+    'infra/main.bicep': '',
+    'infra/net.tf': '',
+    'plugins/p/hooks/hooks.json': JSON.stringify(hooks),
+    'plugins/p/hooks/guard.sh': '#!/bin/sh\n',
+    'hooks/pre-push': '#!/bin/sh\nmise run gate\n',
+    'scripts/release': '#!/usr/bin/env bash\necho release\n',
+    LICENSE: 'MIT\n',
+  }]);
+
+  const seen = census(root).entrypoints.map((e) => `${e.kind} ${e.symbol ?? '-'} ${e.path}`);
+
+  assert.deepEqual(seen.sort(), [
+    'container - Dockerfile',
+    'git-hook pre-push hooks/pre-push',
+    'hook PreToolUse:Bash plugins/p/hooks/guard.sh',
+    'hook Stop plugins/p/hooks/stop.sh',
+    'iac - infra/main.bicep',
+    'iac - infra/net.tf',
+    'script release scripts/release',
+    'service api docker-compose.yml',
+    'service db docker-compose.yml',
+    'service web deploy/compose.yaml',
+    'service worker deploy/compose.yaml',
+    'workflow Gate .github/workflows/gate.yml',
+    'workflow deploy .github/workflows/deploy.yaml',
+  ]);
+});
+
 test('schemas and env vars are detected from their conventional sources', () => {
   const root = fixture([
     {

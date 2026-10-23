@@ -41,10 +41,20 @@ export const python = {
   envVars: (path, text) => pythonEnv(text),
 };
 
+// Git runs a hook by its file name, so a script named like one is a git hook, not a CLI.
+const GIT_HOOKS = new Set([
+  'applypatch-msg', 'commit-msg', 'post-checkout', 'post-commit', 'post-merge', 'post-rewrite',
+  'pre-applypatch', 'pre-commit', 'pre-merge-commit', 'pre-push', 'pre-rebase', 'prepare-commit-msg',
+]);
+
 // An extensionless file is a script only by its shebang; a README-like file has none.
 export const shebangScript = {
   matches: (path) => !posix.basename(path).includes('.'),
-  entrypoints: () => [],
+  entrypoints: (path, text) => {
+    if (!text.startsWith('#!')) return [];
+    const name = posix.basename(path);
+    return [{ kind: GIT_HOOKS.has(name) ? 'git-hook' : 'script', path, symbol: name }];
+  },
   envVars: (path, text) => {
     if (!text.startsWith('#!')) return [];
     const shebang = text.split('\n', 1)[0];

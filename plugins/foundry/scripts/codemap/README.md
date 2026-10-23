@@ -31,7 +31,11 @@ files marked `linguist-vendored` in `.gitattributes`, and anything under a `vend
 
   // Sorted by path, then line.
   "entrypoints": [
-    // kind: "http-route" | "bin" | "program" | "hosted-service".
+    // kind: "http-route" | "bin" | "program" | "hosted-service", plus the runtime kinds:
+    // "workflow" (.github/workflows, symbol from name: or the file), "container" (a
+    // Dockerfile), "service" (a compose service), "iac" (*.bicep, *.tf), "hook" (a Claude Code
+    // hooks/hooks.json command, symbol Event or Event:matcher, path the script it runs),
+    // "git-hook" and "script" (an extensionless file with a shebang, named by its file).
     // method and route are set on http-route; symbol names a bin, class, action or handler.
     // line is set when the entry comes from a match inside a file.
     { "kind": "http-route", "path": "src/server.ts", "line": 2, "method": "GET", "route": "/health" },
@@ -40,7 +44,8 @@ files marked `linguist-vendored` in `.gitattributes`, and anything under a `vend
     { "kind": "hosted-service", "path": "src/Api/Worker.cs", "line": 1, "symbol": "Worker" },
     { "kind": "program", "path": "src/Api/Program.cs", "symbol": "Program" },
     // path is the bin script itself, resolved against its package.json.
-    { "kind": "bin", "path": "bin/cli.js", "symbol": "webctl" }
+    { "kind": "bin", "path": "bin/cli.js", "symbol": "webctl" },
+    { "kind": "hook", "path": "plugins/p/hooks/guard.sh", "symbol": "PreToolUse:Bash" }
   ],
 
   // *.sql, schema.prisma, and anything under a migrations/ or Migrations/ directory. Sorted.

@@ -29,14 +29,37 @@ function dockerfileEnv(text) {
   return names;
 }
 
+/**
+ * Each key directly under the top-level `services:` block. The service indent is taken from
+ * the first one, since compose files indent by 2 or 4; comments never end the block.
+ */
+function composeServices(path, text) {
+  const found = [];
+  let inServices = false;
+  let indent = null;
+  for (const [i, line] of text.split('\n').entries()) {
+    if (!line.trim() || line.trimStart().startsWith('#')) continue;
+    if (/^\S/.test(line)) {
+      inServices = /^services:\s*$/.test(line);
+      indent = null;
+      continue;
+    }
+    const key = inServices && line.match(/^( +)([\w.-]+):/);
+    if (!key) continue;
+    indent ??= key[1].length;
+    if (key[1].length === indent) found.push({ kind: 'service', path, line: i + 1, symbol: key[2] });
+  }
+  return found;
+}
+
 export const compose = {
   matches: (path) => /^(?:docker-)?compose(?:\.[\w-]+)?\.ya?ml$/.test(posix.basename(path)),
-  entrypoints: () => [],
+  entrypoints: composeServices,
   envVars: (path, text) => composeEnv(text),
 };
 
 export const dockerfile = {
   matches: (path) => /^Dockerfile(?:\..+)?$|\.Dockerfile$/i.test(posix.basename(path)),
-  entrypoints: () => [],
+  entrypoints: (path) => [{ kind: 'container', path }],
   envVars: (path, text) => dockerfileEnv(text),
 };

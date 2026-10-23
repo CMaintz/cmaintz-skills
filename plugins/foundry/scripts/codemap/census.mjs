@@ -14,6 +14,7 @@ import { compose, dockerfile } from './detectors/container.mjs';
 import { dotenv } from './detectors/dotenv.mjs';
 import { dotnet } from './detectors/dotnet.mjs';
 import { js, packageJson } from './detectors/js.mjs';
+import { hooksJson, iac, workflow } from './detectors/runtime.mjs';
 import { python, shebangScript, shell } from './detectors/script.mjs';
 import { commitsSince, countChurn, coupledPairs, planSlices } from './history.mjs';
 import { byText, git } from './repo.mjs';
@@ -27,7 +28,7 @@ const MANIFEST_EXTS = new Set(['.csproj', '.sln']);
 // Each detector claims files by name or extension, and the first match handles a file, so a
 // detector added later cannot report the same entrypoint twice. See README.md for adding one.
 // The extensionless shebang check goes last, so a Dockerfile is never sniffed as a script.
-const DETECTORS = [dotenv, packageJson, js, dotnet, compose, dockerfile, shell, python, shebangScript];
+const DETECTORS = [dotenv, packageJson, hooksJson, js, dotnet, compose, dockerfile, workflow, iac, shell, python, shebangScript];
 
 /** Tracked plus untracked-but-not-ignored files, so gitignored paths never reach a detector. */
 function listFiles(root) {
