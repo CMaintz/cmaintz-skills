@@ -69,6 +69,16 @@ The hooks run underneath every step.
 
 The plugin also ships the scripts the skills call: `foundry-ship-pr` (the sanctioned PR path), `foundry-pr-report` (one-shot CI verdict with failing-step logs), `foundry-loop-report` (telemetry summary) and `codemap/census.mjs` (the deterministic census `codemap` starts from).
 
+## MCP server
+
+The plugin registers a read-only stdio MCP server, `foundry` (`.mcp.json`, `scripts/explain-mcp/`), with three tools:
+
+- `explain_rule`: the rule catalog entry for an id such as `eslint:max-len`. Why the rule exists, the sanctioned fix, and whether a suppression is ever acceptable.
+- `explain_failure`: the catalog entries a verb's output or a pasted CI log points at.
+- `gate_status`: the last result per verb from `.foundry/telemetry.jsonl`, the verbs still red, and any verb that passed then failed again (computed by `foundry-loop-report --json`).
+
+None of them runs the gate. That stays `mise run gate`. The catalog is read from the repo's own Foundry install (the `foundry-explain` that `setup:foundry-scripts` caches), so the explanation matches the gate version the repo runs. A repo on an older Foundry gets an error that says so. Every tool takes an optional `repo` path for working in a worktree. The SDK is an npm dependency (`package.json`). Claude Code installs it when it caches the plugin, and the `mcp-deps.sh` SessionStart hook installs it into `${CLAUDE_PLUGIN_DATA}` otherwise. The server starts with a bare `node`, so on Windows `node` must resolve to an `.exe` (mise's default `exe` shims do; `file` shims, which are `node.cmd`, cannot be spawned without a shell).
+
 ## Hooks
 
 All portable `sh` run through `bash`, so they work on Linux, macOS and Windows git-bash alike. Each one is a silent no-op where it doesn't apply, so they're safe to install globally.
@@ -83,6 +93,7 @@ All portable `sh` run through `bash`, so they work on Linux, macOS and Windows g
 | `guard-pr-create.sh` | before a Bash call | denies a bare `gh pr create`, so no PR skips `ship`. The sanction is the `foundry-ship-pr` script itself, which runs the create as a subprocess the hook never sees. |
 | `jev-toolcall-triage.sh` | on stop | opt-in (`JEV_TOOLCALL_TRIAGE=1`): asks Jev whether the turn looked destructive and prints a warning. Never blocks. |
 | `leash.sh` | prompt, stop, session start | opt-in (`LEASH_ENABLED`): the Foundry adapter for [Leash](https://github.com/CMaintz/leash), which checks each turn's diff against the un-lintable rules in `CLAUDE.md`/`AGENTS.md`. Advisory. |
+| `mcp-deps.sh` | session start | installs the MCP server's npm dependencies into `${CLAUDE_PLUGIN_DATA}` when Claude Code hasn't already put them beside the plugin, and again when `package.json` changes. Never blocks. |
 | `pre-push` | `git push` | a plain git hook: runs `mise run gate` and aborts the push if it fails, so a human gets the same gate as the agent. |
 | `pre-commit` | `git commit` | a plain git hook: formats staged files with the repo's own `prettier` and re-stages them. |
 
