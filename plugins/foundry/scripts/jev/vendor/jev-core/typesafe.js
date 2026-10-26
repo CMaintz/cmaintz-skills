@@ -1,4 +1,4 @@
-import { postJson } from './http.js';
+import { DEFAULT_TIMEOUT_MS, postJson } from './http.js';
 import { parseJevResponse } from './validate.js';
 /**
  * TypeSafe first-party adapter.
@@ -17,13 +17,15 @@ export class TypeSafeProvider {
     apiKey;
     model;
     baseUrl;
-    constructor(apiKey, model = 'jev-latest', baseUrl = 'https://api.typesafe.ai/v1') {
-        this.apiKey = apiKey;
-        this.model = model;
-        this.baseUrl = baseUrl;
+    timeoutMs;
+    constructor(opts) {
+        this.apiKey = opts.apiKey;
+        this.model = opts.model ?? 'jev-latest';
+        this.baseUrl = opts.baseUrl ?? 'https://api.typesafe.ai/v1';
+        this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     }
     async evaluate(req, opts = {}) {
-        const json = await postJson(`${this.baseUrl}/systemone`, { Authorization: `Bearer ${this.apiKey}` }, { model: this.model, state: req.state, questions: req.questions }, opts);
+        const json = await postJson(`${this.baseUrl}/systemone`, { Authorization: `Bearer ${this.apiKey}` }, { model: this.model, state: req.state, questions: req.questions }, { timeoutMs: this.timeoutMs, ...opts });
         return parseJevResponse(json, req.questions);
     }
 }
