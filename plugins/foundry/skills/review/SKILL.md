@@ -86,7 +86,7 @@ single pass still applies this: review the diff, not your memory of writing it.)
      acceptance criteria and the Definition of Done, and name each DoD item the
      diff leaves unmet. A DoD item that lives outside the diff (a consumer told, a
      follow-up ticket filed) is listed as not checkable from the diff, not as
-     unmet: `feature`'s verify step owns it. A DoD of
+     unmet: `verify` owns it. A DoD of
      `None beyond the acceptance criteria.` adds nothing to check.
      With the codemap slices, raise a non-blocking `question:` for each slice
      whose cited files the diff touches but that the ticket never mentions: no

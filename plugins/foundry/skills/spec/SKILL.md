@@ -138,7 +138,7 @@ enforced by `ISSUE_TEMPLATE/agent-feature.yml`):
 - **Intent** — the user story: what and why. What the fresh-context reviewer checks the
   diff against.
 - **Acceptance criteria** — a `- [ ]` checklist, each item verifiable. The load-bearing
-  field: `feature`'s `verify` step and `ship`'s spec review both walk it item by item.
+  field: `verify` and `ship`'s spec review both walk it item by item.
 - **Definition of Done** - a `- [ ]` checklist of ticket-specific done-conditions that are
   not behaviour, each verifiable, none restating the gate or `ship`. Or the sentinel
   `None beyond the acceptance criteria.` A ticket without this section is not claimable.
