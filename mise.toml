@@ -18,7 +18,7 @@ description = "shellcheck every shell file the plugin ships or tests with"
 # the plugin's hook manifest, not a script. foundry-loop-report is Python, so it is left out.
 run = [
     "find plugins/foundry/hooks -type f ! -name '*.json' -print0 | xargs -0 shellcheck",
-    "shellcheck plugins/foundry/scripts/foundry-pr-report plugins/foundry/scripts/foundry-ship-pr",
+    "shellcheck plugins/foundry/scripts/foundry-pr-report plugins/foundry/scripts/foundry-pr-watch plugins/foundry/scripts/foundry-ship-pr",
     "find plugins/foundry/scripts -name '*.sh' ! -path '*/vendor/*' -print0 | xargs -0 shellcheck",
     "find tests -type f -name '*.sh' -print0 | xargs -0 shellcheck",
 ]
@@ -37,6 +37,7 @@ run = [
     "bash tests/habit-hooks-guard.test.sh",
     "bash tests/foundry-ship-pr.test.sh",
     "bash tests/guard-governance-labels.test.sh",
+    "bash tests/foundry-pr-watch.test.sh",
 ]
 
 [tasks.audit]
