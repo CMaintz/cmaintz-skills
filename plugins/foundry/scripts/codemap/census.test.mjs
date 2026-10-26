@@ -156,6 +156,7 @@ test('minimal-API routes carry their MapGroup prefix and a method-group handler 
       '    private static void MapUsers(RouteGroupBuilder users)',
       '    {',
       '        users.MapGet("/", ListUsers);',
+      '        users.MapPost("/", static async (CreateUser body) => Results.Created());',
       '        users.MapGet("/{id:guid}", async (Guid id) => Results.Ok());',
       '    }',
       '}',
@@ -174,6 +175,7 @@ test('minimal-API routes carry their MapGroup prefix and a method-group handler 
     'POST /api/admin/reset Reset',
     'GET /t/{tenant}/stats Stats',
     'GET /api/users ListUsers',
+    'POST /api/users -',
     'GET /api/users/{id:guid} -',
   ]);
 });
