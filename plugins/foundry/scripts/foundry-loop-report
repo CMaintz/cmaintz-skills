@@ -10,10 +10,11 @@ Usage:
 
 PATH defaults to $FOUNDRY_TELEMETRY, then .foundry/telemetry.jsonl.
 
-Honest scope (v1): this summarises *verb* telemetry (timing, exit, scope,
-placement) and derives a thrash signal from pass->fail regressions. Smell-trend
-convergence needs smell counts, which the habit-hooks Stop hook will emit later
-(a follow-on); until then this reports "thrash" from verb regressions only.
+Scope: this summarises *verb* telemetry (timing, exit, scope, placement), derives a
+thrash signal from pass->fail regressions, and trends the per-smell counts that
+foundry-smells folds into each scan line under the `smells` task (gate, pre-push, CI).
+The habit-hooks Stop hook does not feed those counts, so smell rounds run between gate
+invocations are not in the series.
 """
 import json
 import os
@@ -41,6 +42,49 @@ def load(path):
 
 def fmt_ms(ms):
     return f"{ms / 1000:.1f}s" if ms >= 1000 else f"{ms}ms"
+
+
+def smell_trend(rows):
+    """Per-smell convergence from the `smells` field foundry-smells folds into a scan's
+    line. A smell whose count falls to zero (gone from a later scan) and then rises
+    again has returned after being cleared - the structural analogue of a verb
+    pass->fail regression, and the design's non-convergence signal.
+
+    Only rows carrying `smells` are scans. A partial scan (its findings include
+    `incomplete-run`) is dropped, not treated as zero: a missing scan would otherwise
+    read as every smell cleared, then every smell back, a false return on each one.
+    Returns {scans, partial, returned: {smell: times}, first, last} where first/last
+    are the total smell counts of the first and last full scans (context only)."""
+    scans, partial = [], 0
+    for r in rows:
+        s = r.get("smells")
+        if not isinstance(s, dict):
+            continue
+        if "incomplete-run" in s:
+            partial += 1
+            continue
+        scans.append(s)
+    if not scans:
+        return {"scans": 0, "partial": partial, "returned": {}, "first": 0, "last": 0}
+    returned = {}
+    for name in set().union(*scans):
+        # unseen -> present -> cleared; a count seen again while cleared is a return. A
+        # smell first appearing (unseen -> present) is scope growing, not a return.
+        state = "unseen"
+        for s in scans:
+            if s.get(name, 0) > 0:
+                if state == "cleared":
+                    returned[name] = returned.get(name, 0) + 1
+                state = "present"
+            elif state == "present":
+                state = "cleared"
+    return {
+        "scans": len(scans),
+        "partial": partial,
+        "returned": returned,
+        "first": sum(scans[0].values()),
+        "last": sum(scans[-1].values()),
+    }
 
 
 def main():
@@ -105,6 +149,31 @@ def main():
               f"Fixing one verb may be breaking another; stop and look before another round.")
     else:
         print("Thrash: none - no verb regressed after passing (loop looks convergent).")
+
+    # Smell trend / convergence.
+    st = smell_trend(rows)
+    excl = (f" [{st['partial']} partial scan{'s' if st['partial'] != 1 else ''} excluded]"
+            if st["partial"] else "")
+    if st["scans"] == 0 and st["partial"]:
+        print("Smells: not recorded - every smell scan was partial (incomplete-run); "
+              f"nothing to trend{excl}.")
+    elif st["scans"] == 0:
+        print("Smells: not recorded - no scan wrote smell counts "
+              "(smells not run under the wrapper, or foundry-smells not cached yet).")
+    elif st["returned"]:
+        detail = ", ".join(f"{name} cleared then returned x{n}"
+                           for name, n in sorted(st["returned"].items(), key=lambda kv: (-kv[1], kv[0])))
+        print(f"Smells: non-converging - {detail}. A cleared structural smell came back; "
+              f"stop and look before another round{excl}.")
+    else:
+        trend = f"{st['scans']} scan{'s' if st['scans'] != 1 else ''}, {st['first']} -> {st['last']}"
+        if st["last"] > st["first"]:
+            # No return, but the count grew: usually new files entering the scanned scope
+            # as the diff grows, not a regression. Don't call a rising count "converging".
+            print(f"Smells: no return after clearing ({trend}){excl}. Count rose, likely "
+                  f"new scope entering the scan rather than thrash.")
+        else:
+            print(f"Smells: converging - no smell returned after being cleared ({trend}){excl}.")
 
     # Latest snapshot.
     latest = {}
