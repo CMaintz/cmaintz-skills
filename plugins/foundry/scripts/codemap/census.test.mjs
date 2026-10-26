@@ -280,8 +280,9 @@ test('runtime entrypoints: workflows, containers, compose services, IaC, agent h
     '.github/workflows/gate.yml': 'name: Gate\non: [push]\njobs: {}\n',
     '.github/workflows/deploy.yaml': 'on: push\njobs: {}\n',
     '.github/workflows/lint.yml': 'name: Lint # fast checks only\non: push\n',
+    '.github/workflows/csharp.yml': 'name: Build C# solution\non: push\n',
     '.github/workflows/quoted.yml': "name: 'Release #2' # tagged\non: push\n",
-    'scripts/deploy.sh': '#!/usr/bin/env bash\necho deploy\n',
+    'scripts/deploy.sh': '\uFEFF#!/usr/bin/env bash\necho deploy\n',
     'scripts/lib.sh': 'log() { echo "$@"; }\n',
     Dockerfile: 'FROM node\nENTRYPOINT ["node", "server.js"]\n',
     'docker-compose.yml': 'services:\n  api:\n    image: x\n  db:\n    image: postgres\nvolumes:\n  data: {}\n',
@@ -311,6 +312,7 @@ test('runtime entrypoints: workflows, containers, compose services, IaC, agent h
     'service db docker-compose.yml',
     'service web deploy/compose.yaml',
     'service worker deploy/compose.yaml',
+    'workflow Build C# solution .github/workflows/csharp.yml',
     'workflow Gate .github/workflows/gate.yml',
     'workflow Lint .github/workflows/lint.yml',
     'workflow Release #2 .github/workflows/quoted.yml',
@@ -374,7 +376,8 @@ test('env vars are read from shell and Python scripts, compose files and Dockerf
     ].join('\n'),
     Dockerfile: 'FROM node\nARG BUILD_ENV\nENV PORT=8080 \\\n    NODE_ENV=production\nENV LEGACY_NAME value\n',
     'infra/main.bicep': [
-      "secrets: [ { name: 'db-connection', value: conn } ]",
+      "secrets: concat([ { name: 'db-connection', value: conn }, { name: 'registrypassword', value: pw } ], extra)",
+      "probes: [ { httpGet: { httpHeaders: [ { name: 'Authorization', value: 'x' } ] } } ]",
       'env: [',
       "  { name: 'ConnectionStrings__Db', secretRef: 'db-connection' }",
       '  {',
@@ -391,6 +394,7 @@ test('env vars are read from shell and Python scripts, compose files and Dockerf
       '}',
       'app_settings = {',
       '  "TF_SETTING" = "x"',
+      '  DB_URL = "postgres://${var.host}/db"',
       '  OTHER_SETTING = var.y',
       '}',
       'tags = { "Owner" = "me" }',
@@ -404,6 +408,7 @@ test('env vars are read from shell and Python scripts, compose files and Dockerf
     'CACHE_TTL docker-compose.yml',
     'CI scripts/ship.sh',
     'ConnectionStrings__Db docker-compose.yml,infra/main.bicep',
+    'DB_URL infra/app.tf',
     'FRONTEND_URL docker-compose.yml',
     'Frontend__Url docker-compose.yml,infra/main.bicep',
     'LEGACY_NAME Dockerfile',
@@ -551,6 +556,13 @@ test('singular and plural spellings of a folder name regroup together, named by 
     'src/Domain/Users/User.cs': '',
     'src/Domain/Address/Address.cs': '',
     'src/Application/Status/Status.cs': '',
+    // Expenses folds onto the Expense beside it; Ad and Ads are too short to trust a fold.
+    'src/Domain/Expenses/Expense.cs': '',
+    'src/Application/Expense/Add.cs': '',
+    'src/Infrastructure/Ad/Directory.cs': '',
+    'src/Domain/Ads/Campaign.cs': '',
+    'src/Domain/Model/M.cs': '',
+    'src/Api/Models/M.cs': '',
   }]);
 
   assert.deepEqual(
@@ -558,6 +570,7 @@ test('singular and plural spellings of a folder name regroup together, named by 
     [
       ['analyses', ['src/Api/Analyses', 'src/Application/Analyses', 'src/Domain/Analysis']],
       ['users', ['src/Api/User', 'src/Application/Users', 'src/Domain/Users']],
+      ['expense', ['src/Application/Expense', 'src/Domain/Expenses']],
     ],
   );
 });

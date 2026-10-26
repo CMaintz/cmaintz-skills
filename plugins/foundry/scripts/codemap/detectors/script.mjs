@@ -29,10 +29,14 @@ const pythonEnv = (text) => [...text.matchAll(
   /os\.(?:environ\.get|getenv)\(\s*['"]([A-Za-z_]\w*)['"]|os\.environ\[\s*['"]([A-Za-z_]\w*)['"]\s*\]/g,
 )].map((m) => m[1] ?? m[2]);
 
+// An editor on Windows can save a byte-order mark ahead of the shebang; the file is still meant
+// as a script.
+const hasShebang = (text) => text.replace(/^\uFEFF/, '').startsWith('#!');
+
 // A shell file without a shebang is sourced by another script, a library rather than a command.
 export const shell = {
   matches: (path) => /\.(sh|bash)$/.test(path),
-  entrypoints: (path, text) => (text.startsWith('#!') ? [{ kind: 'script', path, symbol: posix.basename(path) }] : []),
+  entrypoints: (path, text) => (hasShebang(text) ? [{ kind: 'script', path, symbol: posix.basename(path) }] : []),
   envVars: (path, text) => shellEnv(text),
 };
 
@@ -52,12 +56,12 @@ const GIT_HOOKS = new Set([
 export const shebangScript = {
   matches: (path) => !posix.basename(path).includes('.'),
   entrypoints: (path, text) => {
-    if (!text.startsWith('#!')) return [];
+    if (!hasShebang(text)) return [];
     const name = posix.basename(path);
     return [{ kind: GIT_HOOKS.has(name) ? 'git-hook' : 'script', path, symbol: name }];
   },
   envVars: (path, text) => {
-    if (!text.startsWith('#!')) return [];
+    if (!hasShebang(text)) return [];
     const shebang = text.split('\n', 1)[0];
     if (/\bpython/.test(shebang)) return pythonEnv(text);
     if (/\b(?:ba|da|z|k)?sh\b/.test(shebang)) return shellEnv(text);

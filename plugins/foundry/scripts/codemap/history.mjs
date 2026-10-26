@@ -142,12 +142,23 @@ function sliceKeys(files) {
   };
 }
 
-/** A folder name lower-cased and folded to its singular, so Users meets User and Analyses meets Analysis. */
-const stemOf = (name) => name.toLowerCase()
-  .replace(/ies$/, 'y')
-  .replace(/yses$/, 'ysis')
-  .replace(/(s|x|z|ch|sh)es$/, '$1')
-  .replace(/([^isu])s$/, '$1');
+/**
+ * A function from folder name to its lower-cased stem, folding a plural onto its singular
+ * only when that singular is itself a folder name in `seen`. English plurals defeat suffix
+ * rules (Expenses, Cases, Movies), so it only strips a suffix towards a name that exists.
+ * Stems under four letters never fold: Ad and Ads, or New and News, are usually different
+ * words.
+ */
+function stemmer(seen) {
+  return (name) => {
+    const lower = name.toLowerCase();
+    const singulars = [lower.replace(/yses$/, 'ysis'), lower.replace(/ies$/, 'y'), lower.replace(/es$/, ''), lower.replace(/s$/, '')];
+    return singulars.find((s) => s !== lower && s.length >= 4 && seen.has(s)) ?? lower;
+  };
+}
+
+// The singular of a generic name (Model, Helper) is as generic as the plural.
+const isGeneric = (name) => GENERIC_NAMES.has(name.toLowerCase()) || GENERIC_NAMES.has(`${name.toLowerCase()}s`);
 
 const addTo = (map, key, value) => map.set(key, new Set([...(map.get(key) ?? []), value]));
 
@@ -157,16 +168,25 @@ const addTo = (map, key, value) => map.set(key, new Set([...(map.get(key) ?? [])
  * commonest spelling, joined by any key whose own last segment matches. Subdirectories are
  * read from each key's files, so a flat root never counts the keys beside it as its own.
  * A key that gave folders to a group keeps the rest as `remaining`, its direct children, so
- * its slice does not overlap the groups.
+ * its slice does not overlap the groups it gave to.
  */
 function regroupByName(keyOf) {
+  const seen = new Set();
+  for (const [file, key] of keyOf) {
+    const rest = file.slice(key.length + 1).split('/');
+    seen.add(key.split('/').at(-1).toLowerCase());
+    if (rest.length > 1) seen.add(rest[0].toLowerCase());
+  }
+  const stemOf = stemmer(seen);
+
   const under = new Map();
   for (const [file, key] of keyOf) {
     const rest = file.slice(key.length + 1).split('/');
-    if (rest.length < 2 || !LAYER_NAMES.has(layerOf(key)) || GENERIC_NAMES.has(rest[0].toLowerCase())) continue;
+    if (rest.length < 2 || !LAYER_NAMES.has(layerOf(key)) || isGeneric(rest[0])) continue;
     addTo(under, stemOf(rest[0]), key);
   }
   const recurring = new Set([...under].filter(([, keys]) => keys.size >= 2).map(([stem]) => stem));
+  const grouping = (name) => !isGeneric(name) && recurring.has(stemOf(name));
 
   const groupPaths = new Map();
   const groupOf = new Map();
@@ -174,8 +194,8 @@ function regroupByName(keyOf) {
   for (const [file, key] of keyOf) {
     const leaf = key.split('/').at(-1);
     const rest = file.slice(key.length + 1).split('/');
-    const path = recurring.has(stemOf(leaf)) ? key
-      : rest.length > 1 && recurring.has(stemOf(rest[0])) ? `${key}/${rest[0]}`
+    const path = grouping(leaf) ? key
+      : rest.length > 1 && grouping(rest[0]) ? `${key}/${rest[0]}`
         : null;
     if (path) {
       addTo(groupPaths, stemOf(path.split('/').at(-1)), path);

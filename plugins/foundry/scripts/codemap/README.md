@@ -35,7 +35,7 @@ files marked `linguist-vendored` in `.gitattributes`, and anything under a `vend
     // "workflow" (.github/workflows, symbol from name: or the file), "container" (a
     // Dockerfile), "service" (a compose service), "iac" (*.bicep, *.tf), "hook" (a Claude Code
     // hooks/hooks.json command, symbol Event or Event:matcher, path the script it runs),
-    // "git-hook" and "script" (an extensionless or .sh file with a shebang, named by its file).
+    // "git-hook" and "script" (an extensionless, .sh or .bash file with a shebang, named by its file).
     // method and route are set on http-route, route on ui-route; symbol names a bin, class,
     // action, handler or component.
     // line is set when the entry comes from a match inside a file.
@@ -108,8 +108,10 @@ The slice plan is a starting point for the codemap skill's phase 1, not a final 
    feature-folder layout (`src/orders/services`, `src/billing/services`) stays sliced by
    feature, since `orders` and `billing` are not layers. Generic child names (`common`,
    `shared`, `utils`, `models`, `core`, ...) never regroup. A layer key that gave folders
-   away lists what it has left (`src/Api/Program.cs`, `src/Api/Endpoints`), so no slice's
-   paths overlap another's.
+   away lists what it has left (`src/Api/Program.cs`, `src/Api/Endpoints`), so its paths
+   do not overlap the domain slices. A plural folds onto its singular only when the singular
+   is itself a folder name of four letters or more (`Expenses` onto `Expense`, never `Ads`
+   onto `Ad`).
 4. **Merge.** Slices merge when they share at least `--min-shared` commits and the shared
    count over the commits of the *more*-changed slice is at least `--threshold`. That is
    stricter than `coChange`, which divides by the less-changed side: there a small directory

@@ -6,23 +6,33 @@ export const workflow = {
   entrypoints: (path, text) => [{
     kind: 'workflow',
     path,
-    // A `#` starts a comment only outside quotes: `name: CI # main` is CI, `name: 'Run #2'` keeps its #.
-    symbol: text.match(/^name:\s*(?:(['"])(.+?)\1|([^#\n]*?))\s*(?:#.*)?$/m)?.slice(2).find(Boolean)
+    // YAML starts a comment at a ` #` outside quotes: `name: CI # main` is CI, while
+    // `name: Build C# app` and `name: 'Run #2'` keep their #.
+    symbol: text.match(/^name:\s*(?:(['"])(.+?)\1|((?:[^#\n]|(?<!\s)#)*?))\s*(?:\s#.*)?$/m)?.slice(2).find(Boolean)
       ?? posix.basename(path).replace(/\.ya?ml$/, ''),
   }],
   envPattern: null,
 };
 
+// Bicep arrays whose `{ name, value }` entries are not env vars.
+const BICEP_NOT_ENV = new Set(['secrets', 'httpHeaders']);
+
 /**
  * Env vars an IaC file sets on the app: Bicep `{ name: 'X', value | secretRef: ... }` entries
- * (container `env` and App Service `appSettings` alike), and Terraform `env { name = "X" }`
- * blocks and `app_settings` keys. A name must look like a variable, which keeps out secret
- * and resource names such as `db-connection`.
+ * (container `env` and App Service `appSettings` alike, also when built up in a `var`), and
+ * Terraform `env { name = "X" }` blocks and `app_settings` keys. Bicep secrets and HTTP
+ * headers share the entry shape, so the array an entry sits in is checked by its key.
  */
 function iacEnv(text) {
-  const names = [...text.matchAll(/\{\s*name:\s*'([A-Za-z_]\w*)'\s*,?\s*(?:value|secretRef):/g)].map((m) => m[1]);
+  const names = [];
+  for (const m of text.matchAll(/\{\s*name:\s*'([A-Za-z_]\w*)'\s*,?\s*(?:value|secretRef):/g)) {
+    const arrayKey = [...text.slice(0, m.index).matchAll(/(\w+):\s*(?:concat\(\s*)?\[/g)].at(-1)?.[1];
+    if (!BICEP_NOT_ENV.has(arrayKey)) names.push(m[1]);
+  }
   names.push(...[...text.matchAll(/\benv\s*\{\s*name\s*=\s*"([A-Za-z_]\w*)"/g)].map((m) => m[1]));
-  for (const [, settings] of text.matchAll(/\bapp_settings\s*=\s*\{([^}]*)\}/g)) {
+  // Interpolations are dropped first, since the `}` of `"${var.host}"` would end the block.
+  const plain = text.replace(/\$\{[^}]*\}/g, '');
+  for (const [, settings] of plain.matchAll(/\bapp_settings\s*=\s*\{([^}]*)\}/g)) {
     names.push(...[...settings.matchAll(/^\s*"?([A-Za-z_]\w*)"?\s*=/gm)].map((m) => m[1]));
   }
   return names;
