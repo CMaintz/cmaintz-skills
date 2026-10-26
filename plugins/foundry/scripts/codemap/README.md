@@ -35,7 +35,7 @@ files marked `linguist-vendored` in `.gitattributes`, and anything under a `vend
     // "workflow" (.github/workflows, symbol from name: or the file), "container" (a
     // Dockerfile), "service" (a compose service), "iac" (*.bicep, *.tf), "hook" (a Claude Code
     // hooks/hooks.json command, symbol Event or Event:matcher, path the script it runs),
-    // "git-hook" and "script" (an extensionless file with a shebang, named by its file).
+    // "git-hook" and "script" (an extensionless or .sh file with a shebang, named by its file).
     // method and route are set on http-route, route on ui-route; symbol names a bin, class,
     // action, handler or component.
     // line is set when the entry comes from a match inside a file.

@@ -29,9 +29,10 @@ const pythonEnv = (text) => [...text.matchAll(
   /os\.(?:environ\.get|getenv)\(\s*['"]([A-Za-z_]\w*)['"]|os\.environ\[\s*['"]([A-Za-z_]\w*)['"]\s*\]/g,
 )].map((m) => m[1] ?? m[2]);
 
+// A shell file without a shebang is sourced by another script, a library rather than a command.
 export const shell = {
   matches: (path) => /\.(sh|bash)$/.test(path),
-  entrypoints: () => [],
+  entrypoints: (path, text) => (text.startsWith('#!') ? [{ kind: 'script', path, symbol: posix.basename(path) }] : []),
   envVars: (path, text) => shellEnv(text),
 };
 

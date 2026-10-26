@@ -6,7 +6,9 @@ export const workflow = {
   entrypoints: (path, text) => [{
     kind: 'workflow',
     path,
-    symbol: text.match(/^name:\s*['"]?([^'"\n]+?)['"]?\s*$/m)?.[1] ?? posix.basename(path).replace(/\.ya?ml$/, ''),
+    // A `#` starts a comment only outside quotes: `name: CI # main` is CI, `name: 'Run #2'` keeps its #.
+    symbol: text.match(/^name:\s*(?:(['"])(.+?)\1|([^#\n]*?))\s*(?:#.*)?$/m)?.slice(2).find(Boolean)
+      ?? posix.basename(path).replace(/\.ya?ml$/, ''),
   }],
   envPattern: null,
 };

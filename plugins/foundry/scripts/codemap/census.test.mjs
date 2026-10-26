@@ -279,6 +279,10 @@ test('runtime entrypoints: workflows, containers, compose services, IaC, agent h
   const root = fixture([{
     '.github/workflows/gate.yml': 'name: Gate\non: [push]\njobs: {}\n',
     '.github/workflows/deploy.yaml': 'on: push\njobs: {}\n',
+    '.github/workflows/lint.yml': 'name: Lint # fast checks only\non: push\n',
+    '.github/workflows/quoted.yml': "name: 'Release #2' # tagged\non: push\n",
+    'scripts/deploy.sh': '#!/usr/bin/env bash\necho deploy\n',
+    'scripts/lib.sh': 'log() { echo "$@"; }\n',
     Dockerfile: 'FROM node\nENTRYPOINT ["node", "server.js"]\n',
     'docker-compose.yml': 'services:\n  api:\n    image: x\n  db:\n    image: postgres\nvolumes:\n  data: {}\n',
     'deploy/compose.yaml': 'services:\n    web:\n        image: x\n# the queue worker\n    worker:\n        image: y\n',
@@ -300,12 +304,16 @@ test('runtime entrypoints: workflows, containers, compose services, IaC, agent h
     'hook Stop plugins/p/hooks/stop.sh',
     'iac - infra/main.bicep',
     'iac - infra/net.tf',
+    'script deploy.sh scripts/deploy.sh',
+    'script guard.sh plugins/p/hooks/guard.sh',
     'script release scripts/release',
     'service api docker-compose.yml',
     'service db docker-compose.yml',
     'service web deploy/compose.yaml',
     'service worker deploy/compose.yaml',
     'workflow Gate .github/workflows/gate.yml',
+    'workflow Lint .github/workflows/lint.yml',
+    'workflow Release #2 .github/workflows/quoted.yml',
     'workflow deploy .github/workflows/deploy.yaml',
   ]);
 });
