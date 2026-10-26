@@ -1,4 +1,4 @@
-# CONTRACT — the verb interface
+# CONTRACT - the verb interface
 
 **This file is the seam between `foundry` and `cmaintz-skills`. It is copied verbatim into both repos and must stay identical.** If it ever needs to differ between them, the two-repo split was the wrong call and they should be merged.
 
@@ -17,11 +17,11 @@ Every repo, regardless of language, exposes these six verbs:
 | `mise run audit` | Dependency vulnerabilities, secrets, SAST. | no |
 | `mise run gate` | `lint` → `typecheck` → `test` → `audit`, in that order. **The oracle.** | no |
 
-A repo with no meaningful work for a verb still defines it as a no-op that exits 0. Absence is not permitted — a caller must never have to ask whether a verb exists.
+A repo with no meaningful work for a verb still defines it as a no-op that exits 0. Absence is not permitted - a caller must never have to ask whether a verb exists.
 
 ## Auxiliary tasks
 
-A repo may define additional `mise` tasks beyond the six (e.g. `spotbugs`, `novar`, `eval`, `setup:pmd`). These are **repo-local and not part of the contract**: no caller may assume they exist, and `gate` need not run them. They exist for work that is either not universal across repos or deliberately advisory (report-only). A capability graduates to a seventh contract verb only if it is **universal** — nearly every repo has real work for it — *and* cannot fit inside an existing verb. Until both hold, extend a verb's *composition* (what `lint`/`typecheck`/`test`/`audit` already run) or add an auxiliary task; do not grow the six.
+A repo may define additional `mise` tasks beyond the six (e.g. `spotbugs`, `novar`, `eval`, `setup:pmd`). These are **repo-local and not part of the contract**: no caller may assume they exist, and `gate` need not run them. They exist for work that is either not universal across repos or deliberately advisory (report-only). A capability graduates to a seventh contract verb only if it is **universal** - nearly every repo has real work for it - *and* cannot fit inside an existing verb. Until both hold, extend a verb's *composition* (what `lint`/`typecheck`/`test`/`audit` already run) or add an auxiliary task; do not grow the six.
 
 ## Rules for callers
 
@@ -33,7 +33,7 @@ A repo may define additional `mise` tasks beyond the six (e.g. `spotbugs`, `nova
 
 ## Rules for repos
 
-**Pin everything.** Toolchain versions in `[tools]`. CI actions by commit SHA. The version of any tool an action installs on your behalf — pinning the action alone is not enough.
+**Pin everything.** Toolchain versions in `[tools]`. CI actions by commit SHA. The version of any tool an action installs on your behalf - pinning the action alone is not enough.
 
 **Accepted debt lives in a baseline file that may only shrink.** `eslint-suppressions.json`, `.habit-hooks/snooze.json`, coverage thresholds. These are committed. They are never hand-edited, never regenerated wholesale to make a build pass, and never deleted.
 
@@ -51,4 +51,4 @@ The same verbs run in three places. Divergence between them is a bug in the setu
 
 ## Versioning
 
-Changes to the six verb names, their contracts, or the rules above are **breaking**. Bump the major version of both repos together and update this file in both. Everything else — adding a stack, a preset, a skill — is additive.
+Changes to the six verb names, their contracts, or the rules above are **breaking**. Bump the major version of both repos together and update this file in both. Everything else - adding a stack, a preset, a skill - is additive.
