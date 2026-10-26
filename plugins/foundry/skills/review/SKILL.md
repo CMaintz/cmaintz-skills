@@ -24,7 +24,7 @@ a huge feature with just three.
 
 | Diff | Breadth |
 |---|---|
-| tiny (≲ 2 files / ≲ 50 lines) | one in-context pass, no sub-agents — spawning three to review a typo is waste |
+| tiny (≲ 2 files / ≲ 50 lines) | one fresh sub-agent running all three lenses - three would be waste on a typo, but in-context is never enough: a one-line auth check is tiny and still high-stakes |
 | medium (≲ 15 files / ≲ 500 lines) | the three lenses as three parallel fresh sub-agents |
 | large (beyond that) | shard the diff by area (package/module), run the three lenses per shard in parallel, then a final synthesis pass to dedupe and rank across shards. Scale the agent count with the diff — three is a floor, not a ceiling. |
 
@@ -44,8 +44,8 @@ State the chosen breadth and effort at the top of the report.
 Each lens runs in a **sub-agent that sees only the diff and the context it needs —
 never the conversation that wrote the code.** An agent reviewing its own work
 reviews its *intent*, not its *diff*, and will confidently miss what it meant to
-do but didn't. A fresh context has no intent to be loyal to. (At tiny breadth the
-single pass still applies this: review the diff, not your memory of writing it.)
+do but didn't. A fresh context has no intent to be loyal to. No breadth is exempt,
+however small the diff.
 
 ## Procedure
 
