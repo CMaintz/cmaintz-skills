@@ -60,7 +60,7 @@ The hooks run underneath every step.
 - `spec`: turns a rough idea into a testable spec through a short back-and-forth: acceptance criteria plus a Definition of Done kept separate from them. It rejects DoD items that only restate gate or `ship` checks, and won't file until you explicitly approve the full ticket. With a codemap, its pointers come from the owning slices and must exist in the tree.
 - `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), walks every acceptance criterion and DoD item, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
 - `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review against the linked issue, a conventional commit, then a draft PR through `foundry-ship-pr`, which watches CI and marks the PR ready once green. Review happens before the PR exists, which also keeps API keys out of CI.
-- `review`: one reviewer instead of three. Correctness, standards and spec lenses in parallel fresh sub-agents, scaled to the size of the change. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
+- `review`: one reviewer instead of three. Correctness, standards and spec lenses in fresh sub-agents, scaled to the size of the change. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
 - `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. Foundry's advisory `mise run codemap:check` fails when a citation no longer resolves and reports how many commits each slice is behind.
 - `pr-ci-watch`: loops a PR's CI result back without blocking. Watches the checks in a Herdr pane (or a background task outside Herdr) while the agent keeps working, and on failure fixes, pushes and re-watches.
 - `loop-report`: reads Foundry's verb telemetry to show where the gate spends time and whether the loop is converging or thrashing. Read-only.
@@ -112,11 +112,11 @@ They're installed as plugins rather than copied in, so upstream fixes flow throu
 
 ## Reviewing: one entry point
 
-Install those plugins and you end up with several things called some flavour of "code review". Rather than juggle them, `/foundry:review` is the one you call. It runs three fresh-context lenses itself and folds in the others:
+Install those plugins and you end up with several things called some flavour of "code review". Rather than juggle them, `/foundry:review` is the one you call. It runs the three lenses itself, in fresh-context sub-agents, and folds in the others:
 
 | Piece | Role | How `review` uses it |
 |---|---|---|
-| `/foundry:review` | the one you invoke: correctness, standards and spec in parallel fresh sub-agents | n/a |
+| `/foundry:review` | the one you invoke: correctness, standards and spec in fresh sub-agents, scaled to the diff | n/a |
 | a repo-local skill from `build-project-review` | encodes *this* project's maintainers' preferences | loaded into the standards lens if present |
 | `mattpocock-skills:code-review` | the standards + spec shape `review` is modelled on | reference only, not called |
 | built-in `/code-review` | a fast on-demand bug and cleanup pass, with `--fix` | stays your manual tool |
