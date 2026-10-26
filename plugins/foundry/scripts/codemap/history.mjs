@@ -142,36 +142,60 @@ function sliceKeys(files) {
   };
 }
 
+/** A folder name lower-cased and folded to its singular, so Users meets User and Analyses meets Analysis. */
+const stemOf = (name) => name.toLowerCase()
+  .replace(/ies$/, 'y')
+  .replace(/yses$/, 'ysis')
+  .replace(/(s|x|z|ch|sh)es$/, '$1')
+  .replace(/([^isu])s$/, '$1');
+
+const addTo = (map, key, value) => map.set(key, new Set([...(map.get(key) ?? []), value]));
+
 /**
  * Regroups a layered layout by domain: a non-generic subdirectory name found directly under
- * two or more layer keys becomes one slice named after it, joined by any key whose own last
- * segment matches. Subdirectories are read from each key's files, so a flat root never counts
- * the keys beside it as its own.
+ * two or more layer keys, in any case and either number, becomes one slice named after its
+ * commonest spelling, joined by any key whose own last segment matches. Subdirectories are
+ * read from each key's files, so a flat root never counts the keys beside it as its own.
+ * A key that gave folders to a group keeps the rest as `remaining`, its direct children, so
+ * its slice does not overlap the groups.
  */
 function regroupByName(keyOf) {
   const under = new Map();
   for (const [file, key] of keyOf) {
     const rest = file.slice(key.length + 1).split('/');
-    if (rest.length < 2 || !LAYER_NAMES.has(layerOf(key))) continue;
-    const name = rest[0].toLowerCase();
-    if (!GENERIC_NAMES.has(name)) under.set(name, new Set([...(under.get(name) ?? []), key]));
+    if (rest.length < 2 || !LAYER_NAMES.has(layerOf(key)) || GENERIC_NAMES.has(rest[0].toLowerCase())) continue;
+    addTo(under, stemOf(rest[0]), key);
   }
-  const recurring = new Set([...under].filter(([, keys]) => keys.size >= 2).map(([name]) => name));
+  const recurring = new Set([...under].filter(([, keys]) => keys.size >= 2).map(([stem]) => stem));
 
-  const groups = new Map();
-  const regrouped = new Map();
+  const groupPaths = new Map();
+  const groupOf = new Map();
+  const kept = new Map();
   for (const [file, key] of keyOf) {
-    const leaf = key.split('/').at(-1).toLowerCase();
+    const leaf = key.split('/').at(-1);
     const rest = file.slice(key.length + 1).split('/');
-    const [name, path] = recurring.has(leaf)
-      ? [leaf, key]
-      : rest.length > 1 && recurring.has(rest[0].toLowerCase())
-        ? [rest[0].toLowerCase(), `${key}/${rest[0]}`]
-        : [null, null];
-    if (name) groups.set(name, new Set([...(groups.get(name) ?? []), path]));
-    regrouped.set(file, name ?? key);
+    const path = recurring.has(stemOf(leaf)) ? key
+      : rest.length > 1 && recurring.has(stemOf(rest[0])) ? `${key}/${rest[0]}`
+        : null;
+    if (path) {
+      addTo(groupPaths, stemOf(path.split('/').at(-1)), path);
+      groupOf.set(file, stemOf(path.split('/').at(-1)));
+    } else {
+      addTo(kept, key, `${key}/${rest[0]}`);
+    }
   }
-  return { keyOf: regrouped, groups };
+
+  // Named by the spelling most of its folders use; on a tie the singular, then the first.
+  const nameOf = new Map([...groupPaths].map(([stem, paths]) => {
+    const counts = countChurn([[...paths].map((p) => p.split('/').at(-1).toLowerCase())]);
+    const [name] = [...counts].sort(([a, x], [b, y]) => y - x || (b === stem) - (a === stem) || byText(a, b))[0];
+    return [stem, name];
+  }));
+  const groups = new Map([...groupPaths].map(([stem, paths]) => [nameOf.get(stem), paths]));
+  const gaveAway = new Set([...groupPaths.values()].flatMap((paths) => [...paths]).map((p) => p.split('/').slice(0, -1).join('/')));
+  const remaining = new Map([...kept].filter(([key]) => gaveAway.has(key)));
+  const regrouped = new Map([...keyOf].map(([file, key]) => [file, groupOf.has(file) ? nameOf.get(groupOf.get(file)) : key]));
+  return { keyOf: regrouped, groups, remaining };
 }
 
 /**
@@ -200,7 +224,7 @@ export function planSlices(files, commits, options) {
     else leaveOut(f.split('/')[0], 'other');
   }
 
-  const { keyOf, groups } = regroupByName(initial);
+  const { keyOf, groups, remaining } = regroupByName(initial);
   const fileCount = new Map();
   for (const key of keyOf.values()) fileCount.set(key, (fileCount.get(key) ?? 0) + 1);
 
@@ -217,7 +241,7 @@ export function planSlices(files, commits, options) {
   const slices = [...merged.values()]
     .map((keys) => {
       const names = keys.sort(byText);
-      const paths = names.flatMap((k) => (groups.has(k) ? [...groups.get(k)] : [k])).sort(byText);
+      const paths = names.flatMap((k) => [...(groups.get(k) ?? remaining.get(k) ?? [k])]).sort(byText);
       return { name: names.join('+'), paths, files: names.reduce((n, k) => n + fileCount.get(k), 0) };
     })
     .sort((x, y) => y.files - x.files || byText(x.name, y.name));

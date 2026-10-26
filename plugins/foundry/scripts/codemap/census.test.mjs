@@ -528,14 +528,36 @@ test('a folder name repeated across layer folders becomes one slice named after 
     'web/src/orders/orders.page.ts': '',
   }]);
 
+  // A layer slice lists what is left in it, so no path also sits inside a domain slice.
   assert.deepEqual(
     census(root).slicePlan.map((s) => [s.name, s.paths]),
     [
       ['orders', ['src/Api/Orders', 'src/Domain/Orders', 'web/src/orders']],
       ['users', ['src/Application/Users', 'src/Domain/Users']],
-      ['src/Api', ['src/Api']],
-      ['src/Application', ['src/Application']],
-      ['src/Domain', ['src/Domain']],
+      ['src/Api', ['src/Api/Program.cs']],
+      ['src/Application', ['src/Application/Common']],
+      ['src/Domain', ['src/Domain/Common']],
+    ],
+  );
+});
+
+test('singular and plural spellings of a folder name regroup together, named by the commoner one', () => {
+  const root = fixture([{
+    'src/Api/Analyses/Endpoint.cs': '',
+    'src/Api/User/Me.cs': '',
+    'src/Application/Analyses/Start.cs': '',
+    'src/Application/Users/Register.cs': '',
+    'src/Domain/Analysis/Run.cs': '',
+    'src/Domain/Users/User.cs': '',
+    'src/Domain/Address/Address.cs': '',
+    'src/Application/Status/Status.cs': '',
+  }]);
+
+  assert.deepEqual(
+    census(root).slicePlan.filter((s) => !s.name.startsWith('src/')).map((s) => [s.name, s.paths]),
+    [
+      ['analyses', ['src/Api/Analyses', 'src/Application/Analyses', 'src/Domain/Analysis']],
+      ['users', ['src/Api/User', 'src/Application/Users', 'src/Domain/Users']],
     ],
   );
 });
