@@ -4,7 +4,7 @@
     "name": "CMaintz",
     "url": "https://github.com/CMaintz"
   },
-  "description": "Foundry — an engineering gate and the agent habits that keep it green.",
+  "description": "Foundry - an engineering gate and the agent habits that keep it green.",
   "plugins": [
     {
       "name": "foundry",

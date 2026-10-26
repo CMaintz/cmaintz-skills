@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Foundry — in-loop typecheck reflex (Stop hook). Portable sh. Runs `mise run
+# Foundry - in-loop typecheck reflex (Stop hook). Portable sh. Runs `mise run
 # typecheck` once per turn, only when the turn touched source AND the repo defines
 # an exact TOP-LEVEL `typecheck` task (monorepos namespace theirs, so it no-ops
 # there instead of running a task that doesn't exist). exit 2 coaches on real type
@@ -20,7 +20,7 @@ command -v mise >/dev/null 2>&1 || exit 0
 # Exact top-level `typecheck` task (first column of `mise tasks ls`), not a substring.
 mise tasks ls 2>/dev/null | awk '{print $1}' | grep -qx 'typecheck' || exit 0
 
-# Gradle typecheck is a JVM compile — too slow to run every turn. Skip in-loop for
+# Gradle typecheck is a JVM compile - too slow to run every turn. Skip in-loop for
 # Gradle projects and let /ship + CI cover it; the hook stays worthwhile for fast
 # toolchains (tsc, mypy). Without this, a monorepo runs the full compile at every Stop.
 [ -f ./gradlew ] && exit 0
@@ -33,7 +33,7 @@ printf '%s\n' "$changed" | grep -qE '\.(ts|tsx|js|jsx|java|kt|kts|cs|py|php)$' |
 
 out=$(mise run typecheck 2>&1); rc=$?
 [ "$rc" -eq 0 ] && exit 0
-# Never block on an infrastructure failure — only on a genuine type error.
+# Never block on an infrastructure failure - only on a genuine type error.
 printf '%s' "$out" | grep -qiE 'no task|is not recognized|command not found|no such file|cannot be loaded' && exit 0
 printf 'Type check failed - resolve before finishing:\n%s\n' "$out" >&2
 exit 2
