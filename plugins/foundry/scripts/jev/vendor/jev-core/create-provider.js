@@ -9,16 +9,18 @@ const CLOUDFLARE_MODEL_ALIASES = { 'jev-latest': 'typesafe/jev' };
  * is unknown. See `providerFromEnv` for the fail-open, environment-driven variant.
  */
 export function createProvider(config) {
-    const { provider = 'typesafe', apiKey, model } = config;
+    const { provider = 'typesafe', apiKey, model, timeoutMs } = config;
     if (!apiKey)
         throw new JevRequestError('Jev provider needs an API key');
-    if (provider === 'typesafe')
-        return new TypeSafeProvider(apiKey, model || undefined, config.baseUrl || undefined);
+    if (provider === 'typesafe') {
+        return new TypeSafeProvider({ apiKey, model: model || undefined, baseUrl: config.baseUrl || undefined, timeoutMs });
+    }
     if (provider !== 'cloudflare')
         throw new JevRequestError(`unknown Jev provider "${String(provider)}"`);
     if (!config.accountId)
         throw new JevRequestError('Cloudflare Jev provider needs an account id');
-    return new CloudflareProvider(config.accountId, apiKey, cloudflareModel(model));
+    const { accountId } = config;
+    return new CloudflareProvider({ accountId, apiToken: apiKey, model: cloudflareModel(model), timeoutMs });
 }
 function cloudflareModel(model) {
     if (!model)
