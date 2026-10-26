@@ -359,6 +359,10 @@ test('env vars are read from shell and Python scripts, compose files and Dockerf
       '    environment:',
       '      - QUEUE_NAME=jobs',
       '      - "QUOTED_NAME=1"',
+      '  cache:',
+      '    environment:',
+      '    - CACHE_TTL=60',
+      '    image: redis',
     ].join('\n'),
     Dockerfile: 'FROM node\nARG BUILD_ENV\nENV PORT=8080 \\\n    NODE_ENV=production\nENV LEGACY_NAME value\n',
   }]);
@@ -367,6 +371,7 @@ test('env vars are read from shell and Python scripts, compose files and Dockerf
 
   assert.deepEqual(envVars.map((v) => `${v.name} ${v.files.join(',')}`), [
     'BUILD_ENV Dockerfile',
+    'CACHE_TTL docker-compose.yml',
     'CI scripts/ship.sh',
     'ConnectionStrings__Db docker-compose.yml',
     'FRONTEND_URL docker-compose.yml',
