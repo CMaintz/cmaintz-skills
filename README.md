@@ -23,7 +23,7 @@ An agent is fast and confident, and neither makes it right. These skills and hoo
 
 **Ground the agent in the code as it is.** A cited, verified codemap gives `spec`, `feature` and `review` the same picture of the repo, so pointers are real and edge cases come from actual flows.
 
-**Green is not correct.** A green gate means clean code, not finished work. `feature` hands every acceptance criterion and Definition of Done item to a fresh-context subagent that sees only the ticket and the diff and reports pass or fail per item with evidence, and `review` holds the diff to them in a fresh context too. Both are model judgement, not a deterministic check: reviewers advise; only the gate blocks.
+**Green is not correct.** A green gate means clean code, not finished work. `feature` checks every acceptance criterion and Definition of Done item, and `review` holds the diff to them in a fresh context that doesn't share the author's. Reviewers advise; only the gate blocks.
 
 **One path to main.** Every change leaves through `ship`, and a hook denies the shortcut, so no PR skips the gate or the review.
 
@@ -58,7 +58,7 @@ The hooks run underneath every step.
 ## Skills
 
 - `spec`: turns a rough idea into a testable spec through a short back-and-forth: acceptance criteria plus a Definition of Done kept separate from them. Its procedure drops DoD items that only restate gate or `ship` checks and files only after you explicitly approve the full ticket; nothing checks the filed ticket's shape. With a codemap, its pointers come from the owning slices and must exist in the tree.
-- `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), has a fresh-context subagent check every acceptance criterion and DoD item with evidence, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
+- `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), walks every acceptance criterion and DoD item, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
 - `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review against the linked issue, a conventional commit, then a draft PR through `foundry-ship-pr`, which watches CI and marks the PR ready once green. Review happens before the PR exists, which also keeps API keys out of CI.
 - `review`: one reviewer instead of three. Correctness, standards and spec lenses in parallel fresh sub-agents, scaled to the size of the change. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
 - `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. Foundry's `mise run codemap:check` fails when a citation no longer resolves and reports how many commits each slice is behind. It is advisory and not part of `gate`, so nothing fails a build on it; run it yourself.
@@ -93,7 +93,7 @@ The two git hooks aren't installed by the plugin. From the repo you want gated, 
 `scripts/jev/` puts [Jev](https://typesafe.ai) (TypeSafe System One) on the **proposer** side of Foundry: cheap judgements about where to spend expensive LLM effort, never about pass/fail. It's opt-in and fail-open: set `JEV_API_KEY` to turn it on, and with no key everything behaves as before.
 
 - **Review focus** (`review`): `scripts/jev/review.mjs` ranks which changed files deserve the deepest look. It reorders, never drops.
-- **Feature pre-check** (`feature`, off unless `JEV_FEATURE_PRECHECK=1`): `scripts/jev/precheck.mjs` gives a quick "ticket ready?" / "diff plausibly done?" before the expensive acceptance check. Only a confident "no" short-circuits.
+- **Feature pre-check** (`feature`, off unless `JEV_FEATURE_PRECHECK=1`): `scripts/jev/precheck.mjs` gives a quick "ticket ready?" / "diff plausibly done?" before the expensive verify. Only a confident "no" short-circuits.
 - **Tool-call triage** (the `jev-toolcall-triage.sh` hook above).
 
 Jev is around 68% accurate, so it never decides anything in `mise run gate` or CI: the gate runs these scripts' own unit tests, never Jev itself. `route.mjs` is vendored from [foundry's `scripts/jev/`](https://github.com/CMaintz/foundry/tree/main/scripts/jev), its canonical home. `client.mjs` re-exports the published [`@cmaintz/jev-core`](https://github.com/CMaintz/jev-tools) client, vendored under `scripts/jev/vendor/` by `scripts/jev/vendor-jev-core.sh <version>` so the hooks run with plain node and no install.
