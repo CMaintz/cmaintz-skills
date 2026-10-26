@@ -3,6 +3,8 @@
 # habit-hooks binaries stand in for the real one: each prints its name and exits 1, so
 # the guard reports which one it ran.
 #   Usage: tests/habit-hooks-guard.test.sh
+# Each case runs in its own ( ) so its HOME, PATH and mise trust cannot leak into the next.
+# shellcheck disable=SC2030,SC2031
 set -euo pipefail
 
 HOOK="$(cd "$(dirname "$0")/../plugins/foundry" && pwd)/hooks/habit-hooks-guard.sh"
@@ -27,13 +29,28 @@ new_repo() {
   mkdir .habit-hooks
 }
 
-run_guard() { printf '{"cwd":"%s"}' "$repo" | bash "$HOOK" 2>&1 || true; }
+pin() { # <dir> <version> - a mise.toml there pinning habit-hooks-typescript <version>
+  printf '[env]\nHABIT_HOOKS_PLUGIN = "habit-hooks-typescript"\nHABIT_HOOKS_VERSION = "%s"\n' "$2" > "$1/mise.toml"
+}
+
+# Prints the guard's output, then its exit code as the last line.
+run_guard() { rc=0; printf '{"cwd":"%s"}' "$repo" | bash "$HOOK" 2>&1 || rc=$?; echo "rc=$rc"; }
+
+# PATH without any real habit-hooks, so a "no global copy" case can't pass vacuously on
+# a machine that has one installed.
+no_global_path() {
+  local p="" d IFS=:
+  for d in $PATH; do
+    [ -e "$d/habit-hooks" ] || [ -e "$d/habit-hooks.exe" ] || p="${p:+$p:}$d"
+  done
+  printf '%s' "$p"
+}
 
 # A repo whose mise.toml pins habit-hooks runs that version, not whatever PATH finds
 # first. Otherwise a version bump leaves the in-loop check on the old global install.
 (
   new_repo
-  printf '[env]\nHABIT_HOOKS_PLUGIN = "habit-hooks-typescript"\nHABIT_HOOKS_VERSION = "9.9.9"\n' > mise.toml
+  pin . 9.9.9
   export MISE_TRUSTED_CONFIG_PATHS="$repo"
   out=$(run_guard)
   case "$out" in *"smell from pinned"*) ;; *) fail "pinned repo ran: $out" ;; esac
@@ -46,4 +63,48 @@ run_guard() { printf '{"cwd":"%s"}' "$repo" | bash "$HOOK" 2>&1 || true; }
   out=$(run_guard)
   case "$out" in *"smell from global"*) ;; *) fail "unpinned repo ran: $out" ;; esac
   echo "ok: falls back to habit-hooks on PATH"
+)
+
+# A pinned version that setup:habit-hooks never installed must not quietly run the
+# global copy, which would coach against thresholds gate doesn't use.
+(
+  new_repo
+  pin . 1.0.0
+  export MISE_TRUSTED_CONFIG_PATHS="$repo"
+  out=$(run_guard)
+  case "$out" in *"smell from global"*) fail "uninstalled pin ran the global copy: $out" ;; esac
+  case "$out" in *"mise trust && mise install"*) ;; *) fail "uninstalled pin gave no fix: $out" ;; esac
+  echo "ok: an uninstalled pin does not fall back to PATH"
+)
+
+# When mise can't read the pin (an untrusted fresh worktree), the guard must not guess.
+# A stub mise makes the failure deterministic whatever the machine or CI trusts.
+(
+  new_repo
+  pin . 9.9.9
+  mkdir "$HOME/fakebin"
+  printf '#!/bin/sh\necho "mise: config not trusted" >&2\nexit 1\n' > "$HOME/fakebin/mise"
+  chmod +x "$HOME/fakebin/mise"
+  PATH="$HOME/fakebin:$PATH"
+  out=$(run_guard)
+  case "$out" in *"smell from"*) fail "unreadable pin ran a habit-hooks: $out" ;; esac
+  case "$out" in *"mise trust && mise install"*) ;; *) fail "unreadable pin gave no fix: $out" ;; esac
+  echo "ok: a pin mise can't read does not fall back to PATH"
+)
+
+# A package that can't run the check must not discard another package's findings.
+# backend sorts first, so its smells are found before frontend is reached.
+(
+  new_repo
+  rm "$HOME/.local/bin/habit-hooks"
+  rmdir .habit-hooks
+  mkdir -p backend/.habit-hooks frontend/.habit-hooks
+  pin backend 9.9.9
+  export MISE_TRUSTED_CONFIG_PATHS="$repo"
+  PATH=$(no_global_path)
+  out=$(run_guard)
+  case "$out" in *"smell from pinned"*) ;; *) fail "backend findings lost: $out" ;; esac
+  case "$out" in *"rc=2") ;; *) fail "backend smells did not block the stop: $out" ;; esac
+  case "$out" in *frontend*) ;; *) fail "frontend skip not reported: $out" ;; esac
+  echo "ok: a package without habit-hooks does not mask another's smells"
 )
