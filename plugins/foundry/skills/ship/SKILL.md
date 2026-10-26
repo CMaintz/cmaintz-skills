@@ -64,7 +64,7 @@ Find the linked issue if there is one (`gh issue view <n>`, or a reference in th
 
 The review **must run in a context that never saw the code being written**. This is not ceremony: an agent reviewing its own work reviews its *intent* rather than its *diff*, and will confidently miss what it meant to do but didn't. A fresh context has no intent to be loyal to.
 
-Invoke **`foundry:review`**. It runs three lenses (correctness, standards, spec) in fresh-context sub-agents scaled to the diff size, folds in a repo-local `build-project-review` skill if one exists, and reports deduped findings. It's the single entry point precisely so `ship` (and you) don't juggle reviewers. Surface what it finds to the user before committing.
+Invoke **`foundry:review`**. It runs three lenses (correctness, standards, spec) in fresh-context sub-agents scaled to the diff size, folds in a repo-local `build-project-review` skill if one exists, and reports deduped findings that survived a fresh refuter's attempt to disprove them. It's the single entry point precisely so `ship` (and you) don't juggle reviewers. Surface what it finds to the user before committing.
 
 > The built-in `/code-review` is a *different* tool — a fast, on-demand bug-and-cleanup pass the user runs by hand, with `--fix`. It is not part of `ship`.
 
