@@ -56,8 +56,9 @@ files marked `linguist-vendored` in `.gitattributes`, and anything under a `vend
   // Environment.GetEnvironmentVariable("X"), Python's os.environ / os.getenv, upper-case
   // variables a shell script reads but never sets (common shell variables like HOME left
   // out; extensionless scripts are recognised by their shebang), compose `environment:`
-  // keys and ${X} interpolations, and Dockerfile ARG and ENV names. With the files that
-  // mention each. Sorted by name.
+  // keys and ${X} interpolations, Dockerfile ARG and ENV names, and the app settings an IaC
+  // file sets (Bicep `{ name: 'X', value }` entries, Terraform `env` blocks and
+  // `app_settings` keys). With the files that mention each. Sorted by name.
   "envVars": [{ "name": "PORT", "files": [".env.example", "src/server.ts"] }],
 
   // Non-merge commits per file inside --since, for files that still exist.

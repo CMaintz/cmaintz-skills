@@ -13,10 +13,25 @@ export const workflow = {
   envPattern: null,
 };
 
+/**
+ * Env vars an IaC file sets on the app: Bicep `{ name: 'X', value | secretRef: ... }` entries
+ * (container `env` and App Service `appSettings` alike), and Terraform `env { name = "X" }`
+ * blocks and `app_settings` keys. A name must look like a variable, which keeps out secret
+ * and resource names such as `db-connection`.
+ */
+function iacEnv(text) {
+  const names = [...text.matchAll(/\{\s*name:\s*'([A-Za-z_]\w*)'\s*,?\s*(?:value|secretRef):/g)].map((m) => m[1]);
+  names.push(...[...text.matchAll(/\benv\s*\{\s*name\s*=\s*"([A-Za-z_]\w*)"/g)].map((m) => m[1]));
+  for (const [, settings] of text.matchAll(/\bapp_settings\s*=\s*\{([^}]*)\}/g)) {
+    names.push(...[...settings.matchAll(/^\s*"?([A-Za-z_]\w*)"?\s*=/gm)].map((m) => m[1]));
+  }
+  return names;
+}
+
 export const iac = {
   matches: (path) => /\.(bicep|tf)$/.test(path),
   entrypoints: (path) => [{ kind: 'iac', path }],
-  envPattern: null,
+  envVars: (path, text) => iacEnv(text),
 };
 
 /**
