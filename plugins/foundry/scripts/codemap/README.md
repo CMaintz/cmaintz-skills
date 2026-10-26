@@ -31,12 +31,13 @@ files marked `linguist-vendored` in `.gitattributes`, and anything under a `vend
 
   // Sorted by path, then line.
   "entrypoints": [
-    // kind: "http-route" | "bin" | "program" | "hosted-service", plus the runtime kinds:
+    // kind: "http-route" | "ui-route" | "bin" | "program" | "hosted-service", plus the runtime kinds:
     // "workflow" (.github/workflows, symbol from name: or the file), "container" (a
     // Dockerfile), "service" (a compose service), "iac" (*.bicep, *.tf), "hook" (a Claude Code
     // hooks/hooks.json command, symbol Event or Event:matcher, path the script it runs),
     // "git-hook" and "script" (an extensionless file with a shebang, named by its file).
-    // method and route are set on http-route; symbol names a bin, class, action or handler.
+    // method and route are set on http-route, route on ui-route; symbol names a bin, class,
+    // action, handler or component.
     // line is set when the entry comes from a match inside a file.
     { "kind": "http-route", "path": "src/server.ts", "line": 2, "method": "GET", "route": "/health" },
     { "kind": "http-route", "path": "src/Api/Controllers/UsersController.cs", "line": 5,
@@ -124,6 +125,14 @@ Detection is regex-based and errs towards false negatives:
   (`MapUsers(app.MapGroup("/api/users"))`) within the same file. A helper called with
   several groups reports the route once per group. A method-group handler
   (`MapGet("/", ListUsers)`) is its symbol; a lambda has none.
+- An Angular route comes from a `Routes` array (`const routes: Routes = [...]`,
+  `provideRouter([...])`, `RouterModule.forRoot/forChild([...])`) and joins the paths of
+  its `children:` parents. A `loadComponent` or `loadChildren` route points at the file it
+  imports, with the export it takes as symbol; a `component:` route, or an import that may
+  not name a file (an alias like `@app/x`, or `./admin`, which may be a directory), points
+  at its line. A lazily loaded routes file starts from `/`, since the prefix it is loaded
+  under lives in another file. Commented-out routes, redirects and template-built paths are
+  skipped, and so are arrays typed `Route[]` or written `[...] satisfies Routes`.
 - Test files (`*.test.*`, `*.spec.*`, and anything under `test/`, `tests/` or
   `__tests__/`) are skipped for `entrypoints` and `envVars`, since their fixtures would
   read as the app's own.
