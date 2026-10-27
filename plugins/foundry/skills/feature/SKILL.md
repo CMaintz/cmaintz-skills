@@ -58,7 +58,7 @@ printf '%s\n' <nonce> > "$(git -C ../_wt/<slug>-<n> rev-parse --absolute-git-dir
 
 The second line records the claim's nonce in the worktree's own git dir, which is never committed and goes when the worktree does. "This worktree's nonce" below means that file's contents.
 
-Before creating it, sweep finished worktrees: for each entry in `git worktree list` other than the main checkout, apply `ship`'s step 8 checks and remove the ones that pass. A PR usually merges after the session that opened it has ended, so this sweep is what actually frees the disk. Worktrees that fail a check (an open PR, no PR, uncommitted work) stay.
+Before creating it, sweep finished worktrees: apply `ship`'s step 8 to each entry in `git worktree list --porcelain` other than the main checkout. Its checks remove only worktrees Foundry made that are unlocked, merged, pushed and clean, without forcing. A PR usually merges after the session that opened it has ended, so this sweep is what actually frees the disk. Every other worktree stays; say which were removed and which were skipped, and why.
 
 Work only in that worktree so the main checkout stays untouched. Pinned tools (mise tools, the habit-hooks venv, PMD) are installed once per machine and shared, but a new worktree has neither mise trust nor the project's own dependencies. Run `mise trust`, `mise install`, then the repo's dependency install (`npm ci` for Node); `mise install` does not create `node_modules`, and without it the TypeScript smell sensors report their tools as missing instead of checking anything.
 
