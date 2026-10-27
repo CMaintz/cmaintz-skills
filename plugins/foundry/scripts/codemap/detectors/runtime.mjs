@@ -6,15 +6,42 @@ export const workflow = {
   entrypoints: (path, text) => [{
     kind: 'workflow',
     path,
-    symbol: text.match(/^name:\s*['"]?([^'"\n]+?)['"]?\s*$/m)?.[1] ?? posix.basename(path).replace(/\.ya?ml$/, ''),
+    // YAML starts a comment at a ` #` outside quotes: `name: CI # main` is CI, while
+    // `name: Build C# app` and `name: 'Run #2'` keep their #.
+    symbol: text.match(/^name:\s*(?:(['"])(.+?)\1|((?:[^#\n]|(?<!\s)#)*?))\s*(?:\s#.*)?$/m)?.slice(2).find(Boolean)
+      ?? posix.basename(path).replace(/\.ya?ml$/, ''),
   }],
   envPattern: null,
 };
 
+// Bicep arrays whose `{ name, value }` entries are not env vars.
+const BICEP_NOT_ENV = new Set(['secrets', 'httpHeaders']);
+
+/**
+ * Env vars an IaC file sets on the app: Bicep `{ name: 'X', value | secretRef: ... }` entries
+ * (container `env` and App Service `appSettings` alike, also when built up in a `var`), and
+ * Terraform `env { name = "X" }` blocks and `app_settings` keys. Bicep secrets and HTTP
+ * headers share the entry shape, so the array an entry sits in is checked by its key.
+ */
+function iacEnv(text) {
+  const names = [];
+  for (const m of text.matchAll(/\{\s*name:\s*'([A-Za-z_]\w*)'\s*,?\s*(?:value|secretRef):/g)) {
+    const arrayKey = [...text.slice(0, m.index).matchAll(/(\w+):\s*(?:concat\(\s*)?\[/g)].at(-1)?.[1];
+    if (!BICEP_NOT_ENV.has(arrayKey)) names.push(m[1]);
+  }
+  names.push(...[...text.matchAll(/\benv\s*\{\s*name\s*=\s*"([A-Za-z_]\w*)"/g)].map((m) => m[1]));
+  // Interpolations are dropped first, since the `}` of `"${var.host}"` would end the block.
+  const plain = text.replace(/\$\{[^}]*\}/g, '');
+  for (const [, settings] of plain.matchAll(/\bapp_settings\s*=\s*\{([^}]*)\}/g)) {
+    names.push(...[...settings.matchAll(/^\s*"?([A-Za-z_]\w*)"?\s*=/gm)].map((m) => m[1]));
+  }
+  return names;
+}
+
 export const iac = {
   matches: (path) => /\.(bicep|tf)$/.test(path),
   entrypoints: (path) => [{ kind: 'iac', path }],
-  envPattern: null,
+  envVars: (path, text) => iacEnv(text),
 };
 
 /**

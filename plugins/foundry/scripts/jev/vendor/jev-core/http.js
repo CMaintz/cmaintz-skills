@@ -1,14 +1,12 @@
 import { JevHttpError, JevResponseError, JevTimeoutError } from './errors.js';
+/** Per-attempt timeout used when none is given. */
+export const DEFAULT_TIMEOUT_MS = 30_000;
 /**
  * Minimal POST-JSON helper with the retry policy TypeSafe's docs recommend:
  * exponential backoff on 429 (rate limited) and 529 (overloaded). Each attempt is
  * bounded by an AbortSignal timeout so a hung connection can't stall the caller.
- *
- * The 4th argument also accepts a bare number, read as `maxAttempts`, matching the
- * older standalone copies of this client.
  */
-export async function postJson(url, headers, body, opts = {}) {
-    const { maxAttempts = 4, timeoutMs = 30_000, signal } = typeof opts === 'number' ? { maxAttempts: opts } : opts;
+export async function postJson(url, headers, body, { maxAttempts = 4, timeoutMs = DEFAULT_TIMEOUT_MS, signal } = {}) {
     const init = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
@@ -25,6 +23,7 @@ export async function postJson(url, headers, body, opts = {}) {
     }
 }
 async function fetchOnce(url, init, timeoutMs, signal) {
+    signal?.throwIfAborted();
     const timeout = AbortSignal.timeout(timeoutMs);
     try {
         return await fetch(url, { ...init, signal: signal ? AbortSignal.any([signal, timeout]) : timeout });

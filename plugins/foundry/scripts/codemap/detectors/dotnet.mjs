@@ -33,7 +33,9 @@ const joinPath = (...parts) => `/${parts.join('/')}`.replace(/\/+/g, '/').replac
  * called with several groups yields one prefix per call. Anything else gets no prefix.
  */
 function groupPrefixes(text) {
-  const methods = [...text.matchAll(/(?:public|private|internal|protected|static)[^;{}()=]*?\b(\w+)\s*\(([^)]*)\)\s*(?:\{|=>)/g)]
+  // `static async (Db db) =>` is a lambda, and taking it for a method would end the scope of
+  // the helper it sits in, losing the group prefix of every route after it.
+  const methods = [...text.matchAll(/(?:public|private|internal|protected|static)[^;{}()=]*?\b(?!async\b)(\w+)\s*\(([^)]*)\)\s*(?:\{|=>)/g)]
     .map((m) => ({ index: m.index, name: m[1], params: m[2].split(',').map((p) => p.trim().split(/\s+/).at(-1)) }));
   const enclosing = (index) => methods.findLast((m) => m.index < index);
   const locals = [...text.matchAll(/\bvar\s+(\w+)\s*=\s*(\w+)\s*\.MapGroup\(\s*"([^"]*)"/g)]

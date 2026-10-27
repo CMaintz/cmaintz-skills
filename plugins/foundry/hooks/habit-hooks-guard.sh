@@ -42,32 +42,36 @@ if [ -d .claude/worktrees ] && ! git check-ignore -q .claude/worktrees 2>/dev/nu
 fi
 
 # The habit-hooks a package's mise.toml pins (HABIT_HOOKS_PLUGIN/VERSION, installed by
-# setup:habit-hooks), so this runs the same version as gate and CI. A bare habit-hooks is
-# whatever PATH finds first, often an older global pip install in ~/.local/bin above.
+# setup:habit-hooks), so this runs the same version as gate and CI. A package that pins
+# one never falls back to PATH: that is whatever is found first, often an older global pip
+# install in ~/.local/bin above, coaching against thresholds gate doesn't use.
+# Prints the binary to run, or prints why there is none and returns 1.
 hh_for() {
-  pin=""
-  if command -v mise >/dev/null 2>&1 && [ -f "$1/mise.toml" ]; then
-    # printenv prints one value per line and fails if either is unset.
-    pin=$(cd "$1" && mise exec -- printenv HABIT_HOOKS_PLUGIN HABIT_HOOKS_VERSION 2>/dev/null | paste -sd- -) || pin=""
-  fi
-  if [ -n "$pin" ]; then
+  if [ -f "$1/mise.toml" ] && grep -q HABIT_HOOKS_VERSION "$1/mise.toml"; then
+    # Fails when mise is missing or the config untrusted, as in a fresh worktree.
+    # shellcheck disable=SC2016 # expanded by the sh mise runs, inside the pinned env
+    pin=$(cd "$1" && mise exec -- sh -c 'printf "%s-%s" "$HABIT_HOOKS_PLUGIN" "$HABIT_HOOKS_VERSION"' 2>/dev/null) || pin=""
+    case "$pin" in -*|*-) pin="" ;; esac   # a half-set pin is no pin
     for c in "$HOME/.local/opt/$pin/bin/habit-hooks" "$HOME/.local/opt/$pin/Scripts/habit-hooks.exe"; do
-      [ -x "$c" ] && { printf '%s\n' "$c"; return; }
+      [ -n "$pin" ] && [ -x "$c" ] && { printf '%s\n' "$c"; return 0; }
     done
+    why="${pin:+$pin is not installed}"
+    printf '%s\n' "habit-hooks-guard: WARNING - $1 pins habit-hooks in mise.toml but ${why:-mise could not read the pin}, so the in-loop structural-smell check did NOT run there (CI still enforces it). Run \`mise trust && mise install\` in $1."
+    return 1
+  fi
+  if ! command -v habit-hooks >/dev/null 2>&1; then
+    printf '%s\n' "habit-hooks-guard: WARNING - $1 has .habit-hooks/ but 'habit-hooks' is not on PATH, so the in-loop structural-smell check did NOT run there (CI still enforces it). Install it so local mirrors CI: pip install --user habit-hooks <lang-plugin> (+ standalone PMD for Java), or add its bin dir to PATH."
+    return 1
   fi
   printf '%s\n' habit-hooks
 }
 
 fail=0; report=""
 for d in $dirs; do
-  hh=$(hh_for "$d")
-  # A repo opted in (has .habit-hooks/) but the tool isn't installed: DON'T fail green
-  # silently - that's the exact trap this system exists to avoid. Warn loudly (non-
-  # blocking) with how to fix, then allow the stop; we can't run the check from here.
-  if [ "$hh" = habit-hooks ] && ! command -v habit-hooks >/dev/null 2>&1; then
-    printf '%s\n' "habit-hooks-guard: WARNING - this repo has .habit-hooks/ but 'habit-hooks' is not on PATH, so the in-loop structural-smell check did NOT run (CI still enforces it). Install it so local mirrors CI: pip install --user habit-hooks <lang-plugin> (+ standalone PMD for Java), or add its bin dir to PATH." >&2
-    exit 0
-  fi
+  # Opted in but can't run the check: DON'T fail green silently, that's the exact trap
+  # this system exists to avoid. Warn (non-blocking) and move on, so the other packages
+  # are still checked and any of them can block the stop.
+  hh=$(hh_for "$d") || { printf '%s\n' "$hh" >&2; continue; }
   out=$(cd "$d" && "$hh" --branch 2>&1); rc=$?
   # A JS package never installed here (fresh clone or worktree): its sensors report
   # eslint/knip/ts-morph as "not installed", which nudges the agent into

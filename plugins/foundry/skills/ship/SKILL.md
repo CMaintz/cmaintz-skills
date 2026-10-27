@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Take a finished change from working tree to pull request through the Foundry gate - auto-fix, structural smells, a green gate, a fresh-context review against the linked issue, a conventional commit, then the PR. Invoke this to land ANY finished change: run it BEFORE you `git commit`/`git push`/`gh pr create` yourself - it is the way work leaves the working tree, not only a response to the user saying "ship". Triggers: a change is complete or ready, you're about to commit or open/raise a PR, or the user asks to ship.
+description: Take a finished change from working tree to pull request through the Foundry gate - auto-fix, structural smells, a green gate, a fresh-context review and verify against the linked issue, a conventional commit, then the PR. Invoke this to land ANY finished change: run it BEFORE you `git commit`/`git push`/`gh pr create` yourself - it is the way work leaves the working tree, not only a response to the user saying "ship". Triggers: a change is complete or ready, you're about to commit or open/raise a PR, or the user asks to ship.
 ---
 
 # ship
@@ -64,7 +64,9 @@ Find the linked issue if there is one (`gh issue view <n>`, or a reference in th
 
 The review **must run in a context that never saw the code being written**. This is not ceremony: an agent reviewing its own work reviews its *intent* rather than its *diff*, and will confidently miss what it meant to do but didn't. A fresh context has no intent to be loyal to.
 
-Invoke **`foundry:review`**. It runs three fresh-context lenses - correctness, standards, spec - in parallel, folds in a repo-local `build-project-review` skill if one exists, and reports deduped findings. It's the single entry point precisely so `ship` (and you) don't juggle reviewers. Surface what it finds to the user before committing.
+Invoke **`foundry:review`**. It runs three lenses (correctness, standards, spec) in fresh-context sub-agents scaled to the diff size, folds in a repo-local `build-project-review` skill if one exists, and reports deduped findings that survived a fresh refuter's attempt to disprove them. It's the single entry point precisely so `ship` (and you) don't juggle reviewers. Surface what it finds to the user before committing.
+
+**Then verify, when there is a linked issue.** Invoke **`foundry:verify <n>`** to walk its acceptance criteria and Definition of Done, including DoD items the diff can't show, unless verify already passed in this session on this same change (the same HEAD and no edits since), as it has when `feature` hands over. Like review it is advisory: surface every fail and can't-check to the user before committing, and put its table in the PR body so the reviewer sees each DoD item's state. With no linked issue, skip it.
 
 > The built-in `/code-review` is a *different* tool - a fast, on-demand bug-and-cleanup pass the user runs by hand, with `--fix`. It is not part of `ship`.
 
@@ -94,22 +96,25 @@ On failure, take the failing-step logs it printed and run the observe->fix->veri
 
 ### 8. Clean up the worktree once merged
 
-A worktree holds its own dependencies (a Node one is about 0.5GB of `node_modules`), so remove it when its work has landed. Remove it only when all three hold, or a commit made after the merge is lost:
+A worktree holds its own dependencies (a Node one is about 0.5GB of `node_modules`), so remove it when its work has landed. Remove only a worktree that passes every check below, and report each one skipped with the check it failed:
+
+- **Foundry made it:** its path is `../_wt/<slug>-<n>` beside the main checkout, on branch `feat/<slug>-<n>`, as `feature` step 2 creates them. Any other worktree belongs to the user or another tool (Claude Code's `.claude/worktrees/`), and its ignored files, such as `.env` or a local database, would go with it.
+- **Not locked:** its entry in `git worktree list --porcelain` has no `locked` line. A lock is the owner saying "keep this".
+- **Merged, nothing unpushed, nothing uncommitted:**
 
 ```bash
 gh pr view <branch> --json state,headRefOid   # state is MERGED
-git -C <worktree> status --porcelain          # prints nothing (ignored files are fine)
 git -C <worktree> rev-parse HEAD              # equals that headRefOid
+git -C <worktree> status --porcelain          # prints nothing
 ```
 
-Then remove it and its branch:
+Then remove it, and delete the branch only once the worktree is gone:
 
 ```bash
-git worktree remove --force <worktree> || { rm -rf <worktree> && git worktree prune; }
-git branch -D <branch>
+git worktree remove <worktree> && git branch -D <branch>
 ```
 
-The `rm -rf` fallback is for Windows, where `git worktree remove` often fails with "Directory not empty" on a large `node_modules`. `-D`, not `-d`, because a squash-merged branch is not an ancestor of `main`.
+Never add `--force` and never fall back to `rm -rf`: without them git refuses a dirty or locked worktree instead of deleting it. If the removal fails (on Windows, usually a dev server, IDE or other shell holding files open), leave the worktree and its branch and report it as skipped with git's message. `-D`, not `-d`, because a squash-merged branch is not an ancestor of `main`.
 
 When ship ends the PR is usually still awaiting review, so leave the worktree; `feature` sweeps merged ones at the start of its next run. If a check fails, leave the worktree and say which.
 

@@ -6,7 +6,9 @@ function composeEnv(text) {
   let block = null;
   for (const line of text.split('\n')) {
     const indent = line.match(/^\s*/)[0].length;
-    if (block !== null && line.trim() && indent <= block) block = null;
+    // YAML lets a list sit at its key's own indent, so a `-` there still belongs to the block.
+    const sameIndentItem = indent === block && line.trimStart().startsWith('-');
+    if (block !== null && line.trim() && indent <= block && !sameIndentItem) block = null;
     if (block !== null) {
       const name = line.match(/^\s*(?:-\s*)?["']?([A-Za-z_]\w*)\s*(?:[:=]|["']?$)/)?.[1];
       if (name) names.push(name);
