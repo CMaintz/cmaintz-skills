@@ -6,7 +6,8 @@ node = "22.23.4"
 # Same version the old checksum-pinned shellcheck workflow installed.
 shellcheck = "0.11.0"
 gitleaks = "8.30.1"
-# foundry-loop-report is Python; pinned so its smell-trend test runs the same interpreter here and in CI.
+# foundry-loop-report is Python; pinned so its smell-trend test and the MCP server tests that
+# run it use the same interpreter here and in CI.
 python = "3.12.15"
 
 [tasks.fix]
@@ -30,14 +31,22 @@ description = "Type checking. None yet"
 # The JS is plain .mjs with no tsconfig or JSDoc types to check, so there is no checker to run.
 run = "true"
 
+# The MCP server's SDK is an npm dependency of the plugin (plugins/foundry/package.json);
+# its tests import it, so install the locked tree first. No-op once it is installed.
+[tasks."setup:mcp-deps"]
+description = "Install the plugin's locked npm dependencies (the MCP SDK) for the tests"
+run = "test -d plugins/foundry/node_modules/@modelcontextprotocol/sdk || npm ci --prefix plugins/foundry --no-audit --no-fund"
+
 [tasks.test]
-description = "Node unit tests and the shell tests for hooks and scripts"
+description = "Node unit tests, the MCP server tests and the shell tests for hooks and scripts"
+depends = ["setup:mcp-deps"]
 # Quoted so node expands the glob, not the shell (bash has no ** without globstar).
 run = [
     "node --test \"plugins/foundry/scripts/**/*.test.mjs\"",
     "bash tests/pre-commit.test.sh",
     "bash tests/habit-hooks-guard.test.sh",
     "bash tests/foundry-ship-pr.test.sh",
+    "bash tests/mcp-deps.test.sh",
     "bash tests/foundry-loop-report.test.sh",
     "bash tests/guard-governance-labels.test.sh",
     "bash tests/foundry-pr-watch.test.sh",

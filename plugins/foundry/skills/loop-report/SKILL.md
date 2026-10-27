@@ -24,6 +24,8 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report"            # default
 # or a specific log:  python3 "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report" path/to/telemetry.jsonl
 ```
 
+`--json` prints the same summary as one object (the MCP `gate_status` tool reads it).
+
 If it says there's no telemetry, the repo either hasn't run the gate since the wrapper
 was wired in, or isn't on Foundry — say which, don't invent numbers.
 
