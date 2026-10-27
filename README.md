@@ -67,7 +67,7 @@ The hooks run underneath every step.
 - `repo-align`: pays down formatting and structural-smell debt across a repo, one small PR at a time.
 - `foundry-secret`: triages a gitleaks finding: allowlist a confirmed false positive, or rotate-then-purge a real leak.
 
-The plugin also ships the scripts the skills call: `foundry-ship-pr` (the sanctioned PR path), `foundry-pr-report` (one-shot CI verdict with failing-step logs), `foundry-loop-report` (telemetry summary) and `codemap/census.mjs` (the deterministic census `codemap` starts from).
+The plugin also ships the scripts the skills call: `foundry-ship-pr` (the sanctioned PR path), `foundry-pr-report` (one-shot CI verdict with failing-step logs), `foundry-pr-watch` (waits for the pushed commit's checks, then that verdict), `foundry-loop-report` (telemetry summary) and `codemap/census.mjs` (the deterministic census `codemap` starts from).
 
 ## Hooks
 
@@ -81,6 +81,7 @@ All portable `sh` run through `bash`, so they work on Linux, macOS and Windows g
 | `format-java-stop.sh` | on stop | runs `./gradlew spotlessApply` once per turn when `.java` files changed and the build uses Spotless. Gradle is too slow to run per edit. |
 | `guard-generated-files.sh` | before an edit or shell command | blocks hand-editing generated baselines (`snooze.json`, `eslint-suppressions.json`) and points at the command that regenerates them. |
 | `guard-pr-create.sh` | before a Bash call | denies a bare `gh pr create`, so no PR skips `ship`. The sanction is the `foundry-ship-pr` script itself, which runs the create as a subprocess the hook never sees. |
+| `guard-governance-labels.sh` | before a Bash call | denies an agent applying, aliasing or redefining the `ruleset-change` and `suppression` labels (`--add-label`/`--label` on `gh pr`/`gh issue`, `gh api` label writes, `gh label create`/`edit`). They are a human's sign-off; every other label passes. |
 | `jev-toolcall-triage.sh` | on stop | opt-in (`JEV_TOOLCALL_TRIAGE=1`): asks Jev whether the turn looked destructive and prints a warning. Never blocks. |
 | `leash.sh` | prompt, stop, session start | opt-in (`LEASH_ENABLED`): the Foundry adapter for [Leash](https://github.com/CMaintz/leash), which checks each turn's diff against the un-lintable rules in `CLAUDE.md`/`AGENTS.md`. Advisory. |
 | `pre-push` | `git push` | a plain git hook: runs `mise run gate` and aborts the push if it fails, so a human gets the same gate as the agent. |

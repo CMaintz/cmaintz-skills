@@ -20,8 +20,8 @@ whether work is done (that's the gate).
 The deterministic summariser ships with this plugin. Run it:
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report"            # defaults to .foundry/telemetry.jsonl
-# or a specific log:  python "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report" path/to/telemetry.jsonl
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report"            # defaults to .foundry/telemetry.jsonl
+# or a specific log:  python3 "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-loop-report" path/to/telemetry.jsonl
 ```
 
 If it says there's no telemetry, the repo either hasn't run the gate since the wrapper
