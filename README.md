@@ -57,11 +57,11 @@ The hooks run underneath every step.
 
 ## Skills
 
-- `spec`: turns a rough idea into a testable spec through a short back-and-forth: acceptance criteria plus a Definition of Done kept separate from them. It rejects DoD items that only restate gate or `ship` checks, and won't file until you explicitly approve the full ticket. With a codemap, its pointers come from the owning slices and must exist in the tree.
+- `spec`: turns a rough idea into a testable spec through a short back-and-forth: acceptance criteria plus a Definition of Done kept separate from them. Its procedure drops DoD items that only restate gate or `ship` checks and files only after you explicitly approve the full ticket; nothing checks the filed ticket's shape. With a codemap, its pointers come from the owning slices and must exist in the tree.
 - `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), walks every acceptance criterion and DoD item, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
 - `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review against the linked issue, a conventional commit, then a draft PR through `foundry-ship-pr`, which watches CI and marks the PR ready once green. Review happens before the PR exists, which also keeps API keys out of CI.
 - `review`: one reviewer instead of three. Correctness, standards and spec lenses in fresh sub-agents, scaled to the size of the change, plus a red-team lens at `high` effort. A fresh refuter then tries to disprove each finding, and only the survivors are reported. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
-- `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. Foundry's advisory `mise run codemap:check` fails when a citation no longer resolves and reports how many commits each slice is behind.
+- `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. Foundry's `mise run codemap:check` fails when a citation no longer resolves and reports how many commits each slice is behind. It is advisory and not part of `gate`, so nothing fails a build on it; run it yourself.
 - `pr-ci-watch`: loops a PR's CI result back without blocking. Watches the checks in a Herdr pane (or a background task outside Herdr) while the agent keeps working, and on failure fixes, pushes and re-watches.
 - `loop-report`: reads Foundry's verb telemetry to show where the gate spends time and whether the loop is converging or thrashing. Read-only.
 - `repo-align`: pays down formatting and structural-smell debt across a repo, one small PR at a time.
@@ -98,7 +98,7 @@ All portable `sh` run through `bash`, so they work on Linux, macOS and Windows g
 | `pre-push` | `git push` | a plain git hook: runs `mise run gate` and aborts the push if it fails, so a human gets the same gate as the agent. |
 | `pre-commit` | `git commit` | a plain git hook: formats staged files with the repo's own `prettier` and re-stages them. |
 
-The two git hooks aren't installed by the plugin. Copy them in with `cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (same for `pre-commit`), or version them via `core.hooksPath`; skip once with `--no-verify`.
+The two git hooks aren't installed by the plugin. From the repo you want gated, copy one in from a clone of this repo with `cp <clone>/plugins/foundry/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (same for `pre-commit`). Plugin users have the same files under `~/.claude/plugins/cache/cmaintz/foundry/<version>/hooks/`, or can fetch one with `curl -fsSL https://raw.githubusercontent.com/CMaintz/cmaintz-skills/main/plugins/foundry/hooks/pre-push -o .git/hooks/pre-push`. You can also version them via `core.hooksPath`; skip once with `--no-verify`.
 
 ## The advisory Jev layer
 
@@ -108,7 +108,7 @@ The two git hooks aren't installed by the plugin. Copy them in with `cp hooks/pr
 - **Feature pre-check** (`feature`, off unless `JEV_FEATURE_PRECHECK=1`): `scripts/jev/precheck.mjs` gives a quick "ticket ready?" / "diff plausibly done?" before the expensive verify. Only a confident "no" short-circuits.
 - **Tool-call triage** (the `jev-toolcall-triage.sh` hook above).
 
-Jev is around 68% accurate, so it never decides anything in `mise run gate` or CI: the gate runs these scripts' own unit tests, never Jev itself. `client.mjs` and `route.mjs` are vendored from [foundry's `scripts/jev/`](https://github.com/CMaintz/foundry/tree/main/scripts/jev), the canonical home.
+Jev is around 68% accurate, so it never decides anything in `mise run gate` or CI: the gate runs these scripts' own unit tests, never Jev itself. `route.mjs` is vendored from [foundry's `scripts/jev/`](https://github.com/CMaintz/foundry/tree/main/scripts/jev), its canonical home. `client.mjs` re-exports the published [`@cmaintz/jev-core`](https://github.com/CMaintz/jev-tools) client, vendored under `scripts/jev/vendor/` by `scripts/jev/vendor-jev-core.sh <version>` so the hooks run with plain node and no install.
 
 ## Standing on shoulders
 

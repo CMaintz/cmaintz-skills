@@ -4,8 +4,10 @@
 # to rewrite later on an unrelated branch. The lint check stays the guarantee; this just
 # means you rarely see it fail.
 #
-# Install (one of):
-#   cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Install (one of), from the repo to gate. The file is plugins/foundry/hooks/pre-commit in a
+# cmaintz-skills clone, or ~/.claude/plugins/cache/cmaintz/foundry/<version>/hooks/pre-commit
+# for plugin users:
+#   cp <that path> .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 #   # or, to version it: git config core.hooksPath .githooks  (and put this there)
 #
 # No-op without a local node_modules/.bin/prettier, so it's safe in any stack.
