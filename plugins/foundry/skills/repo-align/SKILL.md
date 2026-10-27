@@ -13,8 +13,9 @@ change); every test stays green.
 ## Multi-session coordination — claim a target as a GitHub ticket
 
 Sessions work in separate worktrees, so coordinate through the one thing they share:
-the **GitHub repo**. Claim the **target** you're about to align as an issue — using
-the same protocol as `/feature` (foundry `presets/ticket-schema.md`). A target is one
+the **GitHub repo**. Claim the **target** you're about to align as an issue, using
+the same claim protocol as `/feature` (step 2 below; ticket fields per foundry
+`presets/ticket-schema.md`). A target is one
 file or module; you clear it in one or more **slices** (one reviewable PR each, per
 the loop below). Requires the `align` / `agent:ready` / `agent:working` /
 `agent:blocked` labels in the repo.
@@ -31,25 +32,27 @@ Before touching code:
    ranked target UNLESS you can name a concrete reason to return (a genuine regression, or
    a god-class campaign whose *next* extraction slice is still outstanding). If you do
    return, say why in the claim issue.
-2. **Claim it atomically.** Prefer an open `align` issue for that target that is
-   `agent:ready`:
-   `gh issue edit <n> --add-label agent:working --remove-label agent:ready --remove-assignee @me`,
-   then **re-read the issue and confirm you hold it**. If it's already `agent:working`,
-   another session has it — pick a different target.
+2. **Claim it with `feature`'s claim** (`${CLAUDE_PLUGIN_ROOT}/skills/feature/SKILL.md`,
+   step 1 **Claim** and the nonce line of step 2): the labels, a claim marker naming
+   your branch and worktree with a fresh session nonce, the nonce recorded in your
+   worktree, then the re-read. Labels alone can't tell two sessions apart, since they
+   share one GitHub identity. Prefer an open `align` issue for that target that is
+   `agent:ready`. If it's already `agent:working`, another session has it - pick a
+   different target.
 3. **No issue for the target yet? Create then confirm.** `gh issue create --label
    "align,agent:working" --title "align: <path>"` (body: acceptance =
    gate green from a clean tree **and** `<path>` drops from `snooze.json` on prune;
-   scope = behaviour-preserving, this target only). Re-list `--label align`; if two
-   now name the same target, the **lower issue number wins** — close the dup, pick
-   another.
-4. **WIP = 1** — hold one target at a time. **Stale recovery:** if an `agent:working`
-   target's branch, PR, or thread has had **no activity for 1 hour**, treat it as
-   abandoned — reset it to `agent:ready` and resume it (from the thread + any open
+   scope = behaviour-preserving, this target only), then post the claim marker and
+   record its nonce as in step 2. Re-list `--label align`; if two now name the same
+   target, the **lower issue number wins** - close the dup, pick another.
+4. **WIP = 1** - hold one target at a time. **Stale recovery:** if an `agent:working`
+   target's branch, PR, or thread has had no activity for longer than `feature`'s
+   stale window (defined once, in its *Stale-claim recovery*), treat it as
+   abandoned - reset it to `agent:ready` and resume it (from the thread + any open
    PRs). Key off *inactivity*, not "has no PR": this is the **only** safety net when a
-   session dies mid-work (a crash, or the human's usage runs out) — a dead session
+   session dies mid-work (a crash, or the human's usage runs out) - a dead session
    can't release its own claim, so recovery must be passive and time-based, not
-   something it does. (An hour, not minutes, so a genuinely long slice isn't reclaimed
-   out from under a live agent.) Still alive but genuinely stuck? Post why to the
+   something it does. Still alive but genuinely stuck? Post why to the
    thread, then label `agent:blocked`.
 
 `/ship` links each slice's PR to the issue — `Refs #<n>` while the target still has

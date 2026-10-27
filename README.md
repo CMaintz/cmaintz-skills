@@ -57,18 +57,28 @@ The hooks run underneath every step.
 
 ## Skills
 
-- `spec`: turns a rough idea into a testable spec through a short back-and-forth: acceptance criteria plus a Definition of Done kept separate from them. It rejects DoD items that only restate gate or `ship` checks, and won't file until you explicitly approve the full ticket. With a codemap, its pointers come from the owning slices and must exist in the tree.
+- `spec`: turns a rough idea into a testable spec through a short back-and-forth: acceptance criteria plus a Definition of Done kept separate from them. Its procedure drops DoD items that only restate gate or `ship` checks and files only after you explicitly approve the full ticket; nothing checks the filed ticket's shape. With a codemap, its pointers come from the owning slices and must exist in the tree.
 - `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), runs `verify` and fixes what it fails, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
 - `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review and `verify` against the linked issue (with the verify table in the PR body), a conventional commit, then a draft PR through `foundry-ship-pr`, which watches CI and marks the PR ready once green. Review happens before the PR exists, which also keeps API keys out of CI.
-- `review`: one reviewer instead of three. Correctness, standards and spec lenses in parallel fresh sub-agents, scaled to the size of the change. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
+- `review`: one reviewer instead of three. Correctness, standards and spec lenses in fresh sub-agents, scaled to the size of the change, plus a red-team lens at `high` effort. A fresh refuter then tries to disprove each finding, and only the survivors are reported. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
 - `verify`: checks a change against its ticket. A read-only fresh-context subagent gets only the ticket, the diff and the means to check (tests, the app, `gh`), and returns pass, fail or can't check with evidence for every acceptance criterion and DoD item, including DoD items outside the diff. Advisory, and with no ticket it stops rather than inventing criteria. Run it yourself (`/foundry:verify [ref]`); `feature` and `ship` call it too.
-- `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. Foundry's advisory `mise run codemap:check` fails when a citation no longer resolves and reports how many commits each slice is behind.
+- `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. Foundry's `mise run codemap:check` fails when a citation no longer resolves and reports how many commits each slice is behind. It is advisory and not part of `gate`, so nothing fails a build on it; run it yourself.
 - `pr-ci-watch`: loops a PR's CI result back without blocking. Watches the checks in a Herdr pane (or a background task outside Herdr) while the agent keeps working, and on failure fixes, pushes and re-watches.
 - `loop-report`: reads Foundry's verb telemetry to show where the gate spends time and whether the loop is converging or thrashing. Read-only.
 - `repo-align`: pays down formatting and structural-smell debt across a repo, one small PR at a time.
 - `foundry-secret`: triages a gitleaks finding: allowlist a confirmed false positive, or rotate-then-purge a real leak.
 
-The plugin also ships the scripts the skills call: `foundry-ship-pr` (the sanctioned PR path), `foundry-pr-report` (one-shot CI verdict with failing-step logs), `foundry-loop-report` (telemetry summary) and `codemap/census.mjs` (the deterministic census `codemap` starts from).
+The plugin also ships the scripts the skills call: `foundry-ship-pr` (the sanctioned PR path), `foundry-pr-report` (one-shot CI verdict with failing-step logs), `foundry-pr-watch` (waits for the pushed commit's checks, then that verdict), `foundry-loop-report` (telemetry summary) and `codemap/census.mjs` (the deterministic census `codemap` starts from).
+
+## MCP server
+
+The plugin registers a read-only stdio MCP server, `foundry` (`.mcp.json`, `scripts/explain-mcp/`), with three tools:
+
+- `explain_rule`: the rule catalog entry for an id such as `eslint:max-len`. Why the rule exists, the sanctioned fix, and whether a suppression is ever acceptable.
+- `explain_failure`: the catalog entries a verb's output or a pasted CI log points at.
+- `gate_status`: the last result per verb from `.foundry/telemetry.jsonl`, the verbs still red, and any verb that passed then failed again (computed by `foundry-loop-report --json`).
+
+None of them runs the gate. That stays `mise run gate`. The catalog is read from the repo's own Foundry install (the `foundry-explain` that `setup:foundry-scripts` caches), so the explanation matches the gate version the repo runs. A repo on an older Foundry gets an error that says so. Every tool takes an optional `repo` path for working in a worktree. The SDK is an npm dependency (`package.json`). Claude Code installs it when it caches the plugin, and the `mcp-deps.sh` SessionStart hook installs it into `${CLAUDE_PLUGIN_DATA}` otherwise. The server starts with a bare `node`, so on Windows `node` must resolve to an `.exe` (mise's default `exe` shims do; `file` shims, which are `node.cmd`, cannot be spawned without a shell).
 
 ## Hooks
 
@@ -82,12 +92,14 @@ All portable `sh` run through `bash`, so they work on Linux, macOS and Windows g
 | `format-java-stop.sh` | on stop | runs `./gradlew spotlessApply` once per turn when `.java` files changed and the build uses Spotless. Gradle is too slow to run per edit. |
 | `guard-generated-files.sh` | before an edit or shell command | blocks hand-editing generated baselines (`snooze.json`, `eslint-suppressions.json`) and points at the command that regenerates them. |
 | `guard-pr-create.sh` | before a Bash call | denies a bare `gh pr create`, so no PR skips `ship`. The sanction is the `foundry-ship-pr` script itself, which runs the create as a subprocess the hook never sees. |
+| `guard-governance-labels.sh` | before a Bash call | denies an agent applying, aliasing or redefining the `ruleset-change` and `suppression` labels (`--add-label`/`--label` on `gh pr`/`gh issue`, `gh api` label writes, `gh label create`/`edit`). They are a human's sign-off; every other label passes. |
 | `jev-toolcall-triage.sh` | on stop | opt-in (`JEV_TOOLCALL_TRIAGE=1`): asks Jev whether the turn looked destructive and prints a warning. Never blocks. |
 | `leash.sh` | prompt, stop, session start | opt-in (`LEASH_ENABLED`): the Foundry adapter for [Leash](https://github.com/CMaintz/leash), which checks each turn's diff against the un-lintable rules in `CLAUDE.md`/`AGENTS.md`. Advisory. |
+| `mcp-deps.sh` | session start | installs the MCP server's npm dependencies into `${CLAUDE_PLUGIN_DATA}` when Claude Code hasn't already put them beside the plugin, and again when `package.json` changes. Never blocks. |
 | `pre-push` | `git push` | a plain git hook: runs `mise run gate` and aborts the push if it fails, so a human gets the same gate as the agent. |
 | `pre-commit` | `git commit` | a plain git hook: formats staged files with the repo's own `prettier` and re-stages them. |
 
-The two git hooks aren't installed by the plugin. Copy them in with `cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (same for `pre-commit`), or version them via `core.hooksPath`; skip once with `--no-verify`.
+The two git hooks aren't installed by the plugin. From the repo you want gated, copy one in from a clone of this repo with `cp <clone>/plugins/foundry/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (same for `pre-commit`). Plugin users have the same files under `~/.claude/plugins/cache/cmaintz/foundry/<version>/hooks/`, or can fetch one with `curl -fsSL https://raw.githubusercontent.com/CMaintz/cmaintz-skills/main/plugins/foundry/hooks/pre-push -o .git/hooks/pre-push`. You can also version them via `core.hooksPath`; skip once with `--no-verify`.
 
 ## The advisory Jev layer
 
@@ -97,7 +109,7 @@ The two git hooks aren't installed by the plugin. Copy them in with `cp hooks/pr
 - **Feature pre-check** (`feature`, off unless `JEV_FEATURE_PRECHECK=1`): `scripts/jev/precheck.mjs` gives a quick "ticket ready?" / "diff plausibly done?" before the expensive verify. Only a confident "no" short-circuits.
 - **Tool-call triage** (the `jev-toolcall-triage.sh` hook above).
 
-Jev is around 68% accurate, so it never decides anything in `mise run gate` or CI: the gate runs these scripts' own unit tests, never Jev itself. `client.mjs` and `route.mjs` are vendored from [foundry's `scripts/jev/`](https://github.com/CMaintz/foundry/tree/main/scripts/jev), the canonical home.
+Jev is around 68% accurate, so it never decides anything in `mise run gate` or CI: the gate runs these scripts' own unit tests, never Jev itself. `route.mjs` is vendored from [foundry's `scripts/jev/`](https://github.com/CMaintz/foundry/tree/main/scripts/jev), its canonical home. `client.mjs` re-exports the published [`@cmaintz/jev-core`](https://github.com/CMaintz/jev-tools) client, vendored under `scripts/jev/vendor/` by `scripts/jev/vendor-jev-core.sh <version>` so the hooks run with plain node and no install.
 
 ## Standing on shoulders
 
@@ -113,11 +125,11 @@ They're installed as plugins rather than copied in, so upstream fixes flow throu
 
 ## Reviewing: one entry point
 
-Install those plugins and you end up with several things called some flavour of "code review". Rather than juggle them, `/foundry:review` is the one you call. It runs three fresh-context lenses itself and folds in the others:
+Install those plugins and you end up with several things called some flavour of "code review". Rather than juggle them, `/foundry:review` is the one you call. It runs the three lenses itself, in fresh-context sub-agents, and folds in the others:
 
 | Piece | Role | How `review` uses it |
 |---|---|---|
-| `/foundry:review` | the one you invoke: correctness, standards and spec in parallel fresh sub-agents | n/a |
+| `/foundry:review` | the one you invoke: correctness, standards and spec in fresh sub-agents, scaled to the diff; red-team at `high`; findings checked by a fresh refuter | n/a |
 | a repo-local skill from `build-project-review` | encodes *this* project's maintainers' preferences | loaded into the standards lens if present |
 | `mattpocock-skills:code-review` | the standards + spec shape `review` is modelled on | reference only, not called |
 | built-in `/code-review` | a fast on-demand bug and cleanup pass, with `--fix` | stays your manual tool |
