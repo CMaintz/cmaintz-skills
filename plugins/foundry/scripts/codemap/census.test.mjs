@@ -156,6 +156,7 @@ test('minimal-API routes carry their MapGroup prefix and a method-group handler 
       '    private static void MapUsers(RouteGroupBuilder users)',
       '    {',
       '        users.MapGet("/", ListUsers);',
+      '        users.MapPost("/", static async (CreateUser body) => Results.Created());',
       '        users.MapGet("/{id:guid}", async (Guid id) => Results.Ok());',
       '    }',
       '}',
@@ -174,6 +175,7 @@ test('minimal-API routes carry their MapGroup prefix and a method-group handler 
     'POST /api/admin/reset Reset',
     'GET /t/{tenant}/stats Stats',
     'GET /api/users ListUsers',
+    'POST /api/users -',
     'GET /api/users/{id:guid} -',
   ]);
 });
@@ -277,6 +279,11 @@ test('runtime entrypoints: workflows, containers, compose services, IaC, agent h
   const root = fixture([{
     '.github/workflows/gate.yml': 'name: Gate\non: [push]\njobs: {}\n',
     '.github/workflows/deploy.yaml': 'on: push\njobs: {}\n',
+    '.github/workflows/lint.yml': 'name: Lint # fast checks only\non: push\n',
+    '.github/workflows/csharp.yml': 'name: Build C# solution\non: push\n',
+    '.github/workflows/quoted.yml': "name: 'Release #2' # tagged\non: push\n",
+    'scripts/deploy.sh': '\uFEFF#!/usr/bin/env bash\necho deploy\n',
+    'scripts/lib.sh': 'log() { echo "$@"; }\n',
     Dockerfile: 'FROM node\nENTRYPOINT ["node", "server.js"]\n',
     'docker-compose.yml': 'services:\n  api:\n    image: x\n  db:\n    image: postgres\nvolumes:\n  data: {}\n',
     'deploy/compose.yaml': 'services:\n    web:\n        image: x\n# the queue worker\n    worker:\n        image: y\n',
@@ -298,12 +305,17 @@ test('runtime entrypoints: workflows, containers, compose services, IaC, agent h
     'hook Stop plugins/p/hooks/stop.sh',
     'iac - infra/main.bicep',
     'iac - infra/net.tf',
+    'script deploy.sh scripts/deploy.sh',
+    'script guard.sh plugins/p/hooks/guard.sh',
     'script release scripts/release',
     'service api docker-compose.yml',
     'service db docker-compose.yml',
     'service web deploy/compose.yaml',
     'service worker deploy/compose.yaml',
+    'workflow Build C# solution .github/workflows/csharp.yml',
     'workflow Gate .github/workflows/gate.yml',
+    'workflow Lint .github/workflows/lint.yml',
+    'workflow Release #2 .github/workflows/quoted.yml',
     'workflow deploy .github/workflows/deploy.yaml',
   ]);
 });
@@ -357,26 +369,59 @@ test('env vars are read from shell and Python scripts, compose files and Dockerf
       '    environment:',
       '      - QUEUE_NAME=jobs',
       '      - "QUOTED_NAME=1"',
+      '  cache:',
+      '    environment:',
+      '    - CACHE_TTL=60',
+      '    image: redis',
     ].join('\n'),
     Dockerfile: 'FROM node\nARG BUILD_ENV\nENV PORT=8080 \\\n    NODE_ENV=production\nENV LEGACY_NAME value\n',
+    'infra/main.bicep': [
+      "secrets: concat([ { name: 'db-connection', value: conn }, { name: 'registrypassword', value: pw } ], extra)",
+      "probes: [ { httpGet: { httpHeaders: [ { name: 'Authorization', value: 'x' } ] } } ]",
+      'env: [',
+      "  { name: 'ConnectionStrings__Db', secretRef: 'db-connection' }",
+      '  {',
+      "    name: 'Frontend__Url'",
+      '    value: frontendUrl',
+      '  }',
+      ']',
+      "tags: { name: 'not-an-env' }",
+    ].join('\n'),
+    'infra/app.tf': [
+      'env {',
+      '  name  = "TF_ENV_NAME"',
+      '  value = "1"',
+      '}',
+      'app_settings = {',
+      '  "TF_SETTING" = "x"',
+      '  DB_URL = "postgres://${var.host}/db"',
+      '  OTHER_SETTING = var.y',
+      '}',
+      'tags = { "Owner" = "me" }',
+    ].join('\n'),
   }]);
 
   const { envVars } = census(root);
 
   assert.deepEqual(envVars.map((v) => `${v.name} ${v.files.join(',')}`), [
     'BUILD_ENV Dockerfile',
+    'CACHE_TTL docker-compose.yml',
     'CI scripts/ship.sh',
-    'ConnectionStrings__Db docker-compose.yml',
+    'ConnectionStrings__Db docker-compose.yml,infra/main.bicep',
+    'DB_URL infra/app.tf',
     'FRONTEND_URL docker-compose.yml',
-    'Frontend__Url docker-compose.yml',
+    'Frontend__Url docker-compose.yml,infra/main.bicep',
     'LEGACY_NAME Dockerfile',
     'NODE_ENV Dockerfile',
+    'OTHER_SETTING infra/app.tf',
     'PORT Dockerfile',
     'QUEUE_NAME docker-compose.yml',
     'QUOTED_NAME docker-compose.yml',
     'REPORT_DIR bin/report',
     'REPORT_PATH bin/report',
     'SHIP_POLL_SECONDS scripts/ship.sh',
+    'TF_ENV_NAME infra/app.tf',
+    'TF_SETTING infra/app.tf',
     'TOKEN bin/report',
   ]);
 });
@@ -488,14 +533,44 @@ test('a folder name repeated across layer folders becomes one slice named after 
     'web/src/orders/orders.page.ts': '',
   }]);
 
+  // A layer slice lists what is left in it, so no path also sits inside a domain slice.
   assert.deepEqual(
     census(root).slicePlan.map((s) => [s.name, s.paths]),
     [
       ['orders', ['src/Api/Orders', 'src/Domain/Orders', 'web/src/orders']],
       ['users', ['src/Application/Users', 'src/Domain/Users']],
-      ['src/Api', ['src/Api']],
-      ['src/Application', ['src/Application']],
-      ['src/Domain', ['src/Domain']],
+      ['src/Api', ['src/Api/Program.cs']],
+      ['src/Application', ['src/Application/Common']],
+      ['src/Domain', ['src/Domain/Common']],
+    ],
+  );
+});
+
+test('singular and plural spellings of a folder name regroup together, named by the commoner one', () => {
+  const root = fixture([{
+    'src/Api/Analyses/Endpoint.cs': '',
+    'src/Api/User/Me.cs': '',
+    'src/Application/Analyses/Start.cs': '',
+    'src/Application/Users/Register.cs': '',
+    'src/Domain/Analysis/Run.cs': '',
+    'src/Domain/Users/User.cs': '',
+    'src/Domain/Address/Address.cs': '',
+    'src/Application/Status/Status.cs': '',
+    // Expenses folds onto the Expense beside it; Ad and Ads are too short to trust a fold.
+    'src/Domain/Expenses/Expense.cs': '',
+    'src/Application/Expense/Add.cs': '',
+    'src/Infrastructure/Ad/Directory.cs': '',
+    'src/Domain/Ads/Campaign.cs': '',
+    'src/Domain/Model/M.cs': '',
+    'src/Api/Models/M.cs': '',
+  }]);
+
+  assert.deepEqual(
+    census(root).slicePlan.filter((s) => !s.name.startsWith('src/')).map((s) => [s.name, s.paths]),
+    [
+      ['analyses', ['src/Api/Analyses', 'src/Application/Analyses', 'src/Domain/Analysis']],
+      ['users', ['src/Api/User', 'src/Application/Users', 'src/Domain/Users']],
+      ['expense', ['src/Application/Expense', 'src/Domain/Expenses']],
     ],
   );
 });

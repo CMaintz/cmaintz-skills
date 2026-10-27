@@ -35,7 +35,7 @@ files marked `linguist-vendored` in `.gitattributes`, and anything under a `vend
     // "workflow" (.github/workflows, symbol from name: or the file), "container" (a
     // Dockerfile), "service" (a compose service), "iac" (*.bicep, *.tf), "hook" (a Claude Code
     // hooks/hooks.json command, symbol Event or Event:matcher, path the script it runs),
-    // "git-hook" and "script" (an extensionless file with a shebang, named by its file).
+    // "git-hook" and "script" (an extensionless, .sh or .bash file with a shebang, named by its file).
     // method and route are set on http-route, route on ui-route; symbol names a bin, class,
     // action, handler or component.
     // line is set when the entry comes from a match inside a file.
@@ -56,8 +56,9 @@ files marked `linguist-vendored` in `.gitattributes`, and anything under a `vend
   // Environment.GetEnvironmentVariable("X"), Python's os.environ / os.getenv, upper-case
   // variables a shell script reads but never sets (common shell variables like HOME left
   // out; extensionless scripts are recognised by their shebang), compose `environment:`
-  // keys and ${X} interpolations, and Dockerfile ARG and ENV names. With the files that
-  // mention each. Sorted by name.
+  // keys and ${X} interpolations, Dockerfile ARG and ENV names, and the app settings an IaC
+  // file sets (Bicep `{ name: 'X', value }` entries, Terraform `env` blocks and
+  // `app_settings` keys). With the files that mention each. Sorted by name.
   "envVars": [{ "name": "PORT", "files": [".env.example", "src/server.ts"] }],
 
   // Non-merge commits per file inside --since, for files that still exist.
@@ -98,14 +99,19 @@ The slice plan is a starting point for the codemap skill's phase 1, not a final 
    own slice, unless roots elsewhere in the repo show where the code lives, in which case
    it is `unsliced` as `other`. A directory with a root keeps its non-root files out too.
 3. **Regroup by repeated names.** A subdirectory name found directly under two or more layer
-   keys (case-insensitive) becomes one slice named after it, joined by any key whose last
+   keys (in any case, singular or plural: `Users` and `User`, `Analyses` and `Analysis`)
+   becomes one slice named after its commonest spelling, joined by any key whose last
    segment matches. A layer key is one whose last segment, or a .NET project folder's part
    after the last dot (`DevInsight.Application`), is a layer or container name: `api`,
    `application`, `domain`, `infrastructure`, `features`, `core`, `shared` and the like.
    This turns a layered layout (Api, Application, Domain) into domain slices, while a
    feature-folder layout (`src/orders/services`, `src/billing/services`) stays sliced by
    feature, since `orders` and `billing` are not layers. Generic child names (`common`,
-   `shared`, `utils`, `models`, `core`, ...) never regroup.
+   `shared`, `utils`, `models`, `core`, ...) never regroup. A layer key that gave folders
+   away lists what it has left (`src/Api/Program.cs`, `src/Api/Endpoints`), so its paths
+   do not overlap the domain slices. A plural folds onto its singular only when the singular
+   is itself a folder name of four letters or more (`Expenses` onto `Expense`, never `Ads`
+   onto `Ad`).
 4. **Merge.** Slices merge when they share at least `--min-shared` commits and the shared
    count over the commits of the *more*-changed slice is at least `--threshold`. That is
    stricter than `coChange`, which divides by the less-changed side: there a small directory
