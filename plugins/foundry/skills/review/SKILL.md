@@ -6,9 +6,9 @@ description: Review a diff, branch, or PR across correctness, standards, and spe
 # review
 
 One reviewer that composes the three lenses worth having, so there is a single
-thing to invoke and track. It takes the best of each separate reviewer —
+thing to invoke and track. It takes the best of each separate reviewer -
 correctness (built-in `/code-review`), Standards + Spec (`mattpocock-skills:code-review`),
-project-specific taste (`build-project-review`) — and runs them as one pass. At
+project-specific taste (`build-project-review`) - and runs them as one pass. At
 `high` effort a red-team lens attacks the change as well, and every finding has
 to survive a fresh refuter before it is reported.
 
@@ -22,21 +22,21 @@ The review scales on two independent axes so it fits a one-line fix and a
 a huge feature with just three. A tiny diff still costs two short sub-agents (the
 lenses, then the refuter), three at `high`: cheap next to a missed bug.
 
-**1. Breadth — set automatically by diff size.** Measure first with
+**1. Breadth - set automatically by diff size.** Measure first with
 `git diff --stat <base>...HEAD` (files touched, lines changed):
 
 | Diff | Breadth |
 |---|---|
 | tiny (≲ 2 files / ≲ 50 lines) | one fresh sub-agent running all three lenses - three would be waste on a typo, but in-context is never enough: a one-line auth check is tiny and still high-stakes |
 | medium (≲ 15 files / ≲ 500 lines) | the three lenses as three parallel fresh sub-agents |
-| large (beyond that) | shard the diff by area (package/module), run the three lenses per shard in parallel, then a final synthesis pass to dedupe and rank across shards. Scale the agent count with the diff — three is a floor, not a ceiling. |
+| large (beyond that) | shard the diff by area (package/module), run the three lenses per shard in parallel, then a final synthesis pass to dedupe and rank across shards. Scale the agent count with the diff - three is a floor, not a ceiling. |
 
-**2. Depth — set by the effort argument (`low` \| `medium` \| `high`, default
+**2. Depth - set by the effort argument (`low` \| `medium` \| `high`, default
 `medium`).** Controls the reporting threshold, not the breadth:
 
 | Effort | Reports |
 |---|---|
-| low | blockers only — correctness bugs, spec violations. Terse. |
+| low | blockers only - correctness bugs, spec violations. Terse. |
 | medium | blockers + should-fix (design smells, missing tests), including any the refuter could not settle, marked unverified |
 | high | the above + nits and suggestions; may surface uncertain findings for a human to judge. Adds the **Red-team** lens. |
 
@@ -44,7 +44,7 @@ State the chosen breadth and effort at the top of the report.
 
 ## Why fresh context
 
-Each lens runs in a **sub-agent that sees only the diff and the context it needs —
+Each lens runs in a **sub-agent that sees only the diff and the context it needs -
 never the conversation that wrote the code.** An agent reviewing its own work
 reviews its *intent*, not its *diff*, and will confidently miss what it meant to
 do but didn't. A fresh context has no intent to be loyal to. No breadth is exempt,
@@ -59,7 +59,7 @@ however small the diff.
 2. **Gather context** once, shared with every lens:
    - the linked issue / spec (`gh issue view`, or a reference in the branch/commits)
    - `AGENTS.md` and `CONTEXT.md` if present
-   - the enforced configs (eslint, tsconfig, `.habit-hooks/`) — so the review
+   - the enforced configs (eslint, tsconfig, `.habit-hooks/`) - so the review
      doesn't re-litigate what tooling already enforces
    - if a repo-local `build-project-review` skill exists, load its criteria into
      the Standards lens
@@ -79,12 +79,12 @@ however small the diff.
 
 3. **Run the lenses at the chosen breadth.** Each lens, given only the diff plus
    the context above:
-   - **Correctness** — bugs, wrong edge cases, unhandled errors, race conditions,
+   - **Correctness** - bugs, wrong edge cases, unhandled errors, race conditions,
      resource leaks, off-by-ones, broken invariants.
-   - **Standards** — the repo's own conventions: naming, module boundaries, the
+   - **Standards** - the repo's own conventions: naming, module boundaries, the
      structural-smell vocabulary, plus any `build-project-review` criteria. Not
      generic style a linter already covers.
-   - **Spec** — does the diff do what the issue asked? Missing requirements, and
+   - **Spec** - does the diff do what the issue asked? Missing requirements, and
      scope creep (things done that nobody asked for). Check it against the
      acceptance criteria and the Definition of Done, and name each DoD item the
      diff leaves unmet. A DoD item that lives outside the diff (a consumer told, a
@@ -129,8 +129,8 @@ however small the diff.
    questions rather than claims.
 
 6. **Report**, grouped by lens, most severe first, each as
-   `file:line — what — why`. State the breadth and effort used. Say explicitly
-   when a lens found nothing — silence is a result, not an omission. Give the
+   `file:line - what - why`. State the breadth and effort used. Say explicitly
+   when a lens found nothing - silence is a result, not an omission. Give the
    count of findings the refute step dropped, so a short report is visibly
    filtered rather than thin.
 

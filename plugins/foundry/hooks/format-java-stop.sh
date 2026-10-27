@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Foundry — format Java on Stop. Portable sh. Runs `./gradlew spotlessApply` once
+# Foundry - format Java on Stop. Portable sh. Runs `./gradlew spotlessApply` once
 # per turn, only when the turn touched .java and the build uses Spotless. Spotless
 # ratchetFrom origin/main scopes the rewrite to changed files. Once-per-turn is the
-# right cadence for a JVM formatter (per-edit is too slow — that's auto-format.sh's job).
+# right cadence for a JVM formatter (per-edit is too slow - that's auto-format.sh's job).
 set -u
 
 payload=$(cat)

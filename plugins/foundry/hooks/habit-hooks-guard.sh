@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Foundry — in-loop habit check (Stop hook). Portable sh. Runs habit-hooks when the
+# Foundry - in-loop habit check (Stop hook). Portable sh. Runs habit-hooks when the
 # agent is about to finish, in every package that opted in with a .habit-hooks/
-# directory — the repo root AND each immediate subdir, so a monorepo's backend/ and
+# directory - the repo root AND each immediate subdir, so a monorepo's backend/ and
 # frontend/ are both checked (not just the cwd). Silent where nothing opted in, so
 # it's safe to install globally. Scope is --branch (the changeset).
 set -u
@@ -17,7 +17,7 @@ if [ -n "$cwd" ]; then
   cd "$cwd" 2>/dev/null || true
 fi
 
-# Make locally-installed tools discoverable — a hook's PATH often lacks these:
+# Make locally-installed tools discoverable - a hook's PATH often lacks these:
 # habit-hooks (uv/pip user install) and the standalone PMD the Java sensor needs.
 # We RUN the check locally rather than skip it; the whole point is CI mirrored here.
 for d in "$HOME/.local/bin" "$HOME"/.local/opt/pmd-bin-*/bin; do
@@ -29,7 +29,7 @@ export PATH
 dirs=""
 [ -d .habit-hooks ] && dirs="."
 for d in */; do [ -d "${d}.habit-hooks" ] && dirs="$dirs ${d%/}"; done
-[ -n "$dirs" ] || exit 0   # nothing opted in here — silent, safe to install globally
+[ -n "$dirs" ] || exit 0   # nothing opted in here - silent, safe to install globally
 
 # Claude Code's EnterWorktree puts full repo copies under .claude/worktrees/. Unignored,
 # --branch counts them as untracked branch files and reports every file as duplicated.
@@ -99,7 +99,7 @@ done
 
 ── how to act on these smells ──
 Each smell is a shadow of code doing more than one thing. Fix toward the missing
-abstraction (a value object, a strategy, a named step) — never by splitting to a
+abstraction (a value object, a strategy, a named step) - never by splitting to a
 line count, and never with a change designed only to appease the tool.
   oversized-function   too long to hold one idea       -> extract a named step / collaborator
   oversized-file       too many responsibilities        -> split by concern into cohesive units
@@ -109,7 +109,7 @@ line count, and never with a change designed only to appease the tool.
   deep-nesting         a nested block wants a name       -> extract it; use early returns
   duplication          same logic in two places          -> extract one shared function
   dead-code            nothing references it             -> delete it
-Clearing a smell is necessary, not sufficient — "is this one thing?" is still your
+Clearing a smell is necessary, not sufficient - "is this one thing?" is still your
 call. Fix it (or, if it's genuinely warranted, say why) before finishing.
 LEGEND
 } >&2

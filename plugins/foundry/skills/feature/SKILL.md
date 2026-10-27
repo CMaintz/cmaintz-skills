@@ -1,22 +1,22 @@
 ---
 name: feature
-description: Drive a feature ticket to a reviewable PR through the Foundry gate — claim it, implement in an isolated worktree, loop against `mise run gate` until green, verify against the acceptance criteria, then hand to `ship`. Invoke with a ticket id/ref to work that ticket; invoke with no argument to claim the next `agent:ready` ticket from the backlog (wrap in `/loop` for a semi-auto puller). Triggers: implement/work/pick up an issue or ticket, pull the next backlog item, start the next feature.
+description: Drive a feature ticket to a reviewable PR through the Foundry gate - claim it, implement in an isolated worktree, loop against `mise run gate` until green, verify against the acceptance criteria, then hand to `ship`. Invoke with a ticket id/ref to work that ticket; invoke with no argument to claim the next `agent:ready` ticket from the backlog (wrap in `/loop` for a semi-auto puller). Triggers: implement/work/pick up an issue or ticket, pull the next backlog item, start the next feature.
 ---
 
 # feature
 
-The front half of the Foundry loop: a feature request becomes a change that reaches a green gate on its own, then hands to `ship`. It re-implements none of the standards — **the gate is the oracle** and `ship` is the handoff. This skill never opens a PR itself; it drives a claimed ticket to a verified, green working tree and lets `ship` take it from there.
+The front half of the Foundry loop: a feature request becomes a change that reaches a green gate on its own, then hands to `ship`. It re-implements none of the standards - **the gate is the oracle** and `ship` is the handoff. This skill never opens a PR itself; it drives a claimed ticket to a verified, green working tree and lets `ship` take it from there.
 
 ## Modes
 
 - **`/feature <ref>` - supervised.** Work that specific ticket. If its acceptance criteria are thin or it has no Definition of Done, interview the user to fill the [ticket schema](#the-ticket) before claiming.
-- **`/feature` — puller.** Sweep stale claims (see [Stale-claim recovery](#stale-claim-recovery)), then claim the next `agent:ready` ticket that already passes the completeness check. Skip incomplete tickets — never interview in this mode, since no one is there to answer. Wrap in `/loop <interval> /feature` for a semi-auto backlog puller.
+- **`/feature` - puller.** Sweep stale claims (see [Stale-claim recovery](#stale-claim-recovery)), then claim the next `agent:ready` ticket that already passes the completeness check. Skip incomplete tickets - never interview in this mode, since no one is there to answer. Wrap in `/loop <interval> /feature` for a semi-auto backlog puller.
 
 ## Before you start
 
 Confirm, and stop if any fails:
 
-1. **The repo defines the verbs.** `mise tasks ls` lists `gate`. If not, this repo is not onboarded to Foundry — say so and stop rather than improvising with raw tools.
+1. **The repo defines the verbs.** `mise tasks ls` lists `gate`. If not, this repo is not onboarded to Foundry - say so and stop rather than improvising with raw tools.
 2. **A ticket source is reachable.** GitHub Issues via `gh` (the default), or a local `tickets/` directory (the fallback). Both normalize to one [ticket](#the-ticket).
 
 ## The sequence
@@ -49,7 +49,7 @@ It pages through every comment, so the marker is found on a long thread too, and
 
 ### 2. Isolated worktree
 
-One ticket, one worktree, one branch off `origin/main`, one PR — matching `collaboration.md`:
+One ticket, one worktree, one branch off `origin/main`, one PR - matching `collaboration.md`:
 
 ```bash
 git worktree add -b feat/<slug>-<n> ../_wt/<slug>-<n> origin/main
@@ -70,14 +70,14 @@ git diff --name-status <sha> HEAD
 
 If a cited file changed, or the `sha` is unreachable, warn that the slice may be stale and check its claims against the code before relying on them; the code wins where they disagree. Do not edit the codemap in this change: refreshing it is `codemap refresh`'s job, in its own PR. Without `docs/codemap/INDEX.md`, skip this and do not suggest generating one.
 
-### 3. Inner loop — drive the gate green (bounded)
+### 3. Inner loop - drive the gate green (bounded)
 
 Implement toward the acceptance checklist and the Definition of Done, then loop. Each cycle runs the same three commands `ship` re-runs authoritatively, so a clean cycle here means `ship` will not bounce it back:
 
 ```bash
-mise run fix     # mechanical fixes only; it mutates files — review the diff
+mise run fix     # mechanical fixes only; it mutates files - review the diff
 mise run smells  # structural smells; its output is coaching, a highest-priority instruction
-mise run gate    # the oracle — must exit 0
+mise run gate    # the oracle - must exit 0
 ```
 
 Run `mise run smells` when `mise tasks ls` lists a top-level `smells` task: it runs the habit-hooks version the repo pins, the same check `gate` runs. A bare `habit-hooks` runs whatever is first on `PATH`, which can be an older global install. `smells` is an auxiliary task, not a contract verb, so when the repo has none, run `habit-hooks` instead, under the rule below.
@@ -90,9 +90,9 @@ Run `mise run smells` when `mise tasks ls` lists a top-level `smells` task: it r
 - **Green gate and no smells** → go to step 4.
 - **Otherwise** → act on the `habit-hooks` coaching and the failing verb's output, **fix the cause**, and re-run from a clean tree.
 
-**Fix the cause, never the rule.** A green gate reached by disabling a lint rule, lowering a threshold, or growing a suppression baseline is not done — and `ruleset-guard` will block it anyway. Prune baselines only via `mise run fix`.
+**Fix the cause, never the rule.** A green gate reached by disabling a lint rule, lowering a threshold, or growing a suppression baseline is not done - and `ruleset-guard` will block it anyway. Prune baselines only via `mise run fix`.
 
-**Bounds** — so the loop terminates:
+**Bounds** - so the loop terminates:
 
 - At most **5** gate-fix cycles.
 - **No-progress exit:** if the same failure set survives two cycles running, escalate immediately rather than burning the remaining budget on a wall.
@@ -127,9 +127,9 @@ gh issue edit <n> --add-label agent:blocked --remove-label agent:working --add-a
 
 ## Stale-claim recovery
 
-Before claiming in puller mode, reset abandoned claims: any `agent:working` ticket inactive for longer than the **stale window of 2 hours** returns to `agent:ready` (assigned back to the owner, as `spec` filed it), and is **resumed** from its thread + any open PR — not restarted. This is what stops one dead session (a crash, or the human's usage running out) from stranding a ticket forever. This is the only definition of the stale window: `repo-align` reclaims by it too, so change it here and nowhere else.
+Before claiming in puller mode, reset abandoned claims: any `agent:working` ticket inactive for longer than the **stale window of 2 hours** returns to `agent:ready` (assigned back to the owner, as `spec` filed it), and is **resumed** from its thread + any open PR - not restarted. This is what stops one dead session (a crash, or the human's usage running out) from stranding a ticket forever. This is the only definition of the stale window: `repo-align` reclaims by it too, so change it here and nowhere else.
 
-Key off **inactivity, not "has no branch/PR"** — a session that already opened a PR then died must still be recoverable. A dead session can't release its own claim, so recovery has to be passive and time-based, done by the next puller pass. Measure inactivity as the most recent of: the issue's last timeline event, its linked PR's last update, or the working branch's last commit — reclaim only if that is older than the stale window:
+Key off **inactivity, not "has no branch/PR"** - a session that already opened a PR then died must still be recoverable. A dead session can't release its own claim, so recovery has to be passive and time-based, done by the next puller pass. Measure inactivity as the most recent of: the issue's last timeline event, its linked PR's last update, or the working branch's last commit - reclaim only if that is older than the stale window:
 
 ```bash
 gh issue view <n> --json updatedAt --jq .updatedAt   # plus the linked PR's updatedAt, if any
@@ -148,4 +148,4 @@ Stop and ask the user, rather than pressing on, if:
 - the repo is not onboarded to Foundry (no `gate` verb)
 - the repo has `.habit-hooks/` but the `habit-hooks` command is missing
 - no claimable ticket exists (puller mode)
-- the change needs a ruleset change to be correct — that is a separate PR with the `ruleset-change` label
+- the change needs a ruleset change to be correct - that is a separate PR with the `ruleset-change` label

@@ -1,18 +1,18 @@
 ---
 name: ship
-description: Take a finished change from working tree to pull request through the Foundry gate — auto-fix, structural smells, a green gate, a fresh-context review and verify against the linked issue, a conventional commit, then the PR. Invoke this to land ANY finished change: run it BEFORE you `git commit`/`git push`/`gh pr create` yourself — it is the way work leaves the working tree, not only a response to the user saying "ship". Triggers: a change is complete or ready, you're about to commit or open/raise a PR, or the user asks to ship.
+description: Take a finished change from working tree to pull request through the Foundry gate - auto-fix, structural smells, a green gate, a fresh-context review and verify against the linked issue, a conventional commit, then the PR. Invoke this to land ANY finished change: run it BEFORE you `git commit`/`git push`/`gh pr create` yourself - it is the way work leaves the working tree, not only a response to the user saying "ship". Triggers: a change is complete or ready, you're about to commit or open/raise a PR, or the user asks to ship.
 ---
 
 # ship
 
-Pre-PR review, run locally. This moves review left of the PR entirely, which is what lets CI stay 100% deterministic — no API key, no model, no secrets beyond the default token.
+Pre-PR review, run locally. This moves review left of the PR entirely, which is what lets CI stay 100% deterministic - no API key, no model, no secrets beyond the default token.
 
 ## Before you start
 
 Confirm all three, and stop if any fails:
 
 1. **The working tree has changes.** Nothing to ship is not an error, just say so.
-2. **You are not on the default branch.** If you are, create a branch first — name it `<type>/<short-slug>` matching the change.
+2. **You are not on the default branch.** If you are, create a branch first - name it `<type>/<short-slug>` matching the change.
 3. **The repo defines the verbs.** `mise tasks ls` lists `gate`. If it does not, this repo has not been onboarded to Foundry; say so and stop rather than improvising with raw tools.
 
 ## The sequence
@@ -25,7 +25,7 @@ Do not skip steps and do not reorder them. Each one exists because the next is u
 mise run fix
 ```
 
-Mechanical fixes only. Review the resulting diff before continuing — `fix` mutates files, and you are accountable for what it changed.
+Mechanical fixes only. Review the resulting diff before continuing - `fix` mutates files, and you are accountable for what it changed.
 
 ### 2. Structural smells
 
@@ -39,11 +39,11 @@ Run `mise run smells` when `mise tasks ls` lists a top-level `smells` task: it r
 
 If it exits non-zero, its output is coaching aimed at you, and it is a direct instruction of the highest priority. Read it properly.
 
-Fix the smells it names. Its guidance is explicit that mechanical compliance is not the goal — splitting a file at line 200 into `foo-1.ts` and `foo-2.ts`, or extracting duplicated lines into a helper with five parameters and a couple of conditionals, satisfies the threshold while leaving the real problem in place. If a finding genuinely should not be fixed, snooze it *and say why in the PR body*.
+Fix the smells it names. Its guidance is explicit that mechanical compliance is not the goal - splitting a file at line 200 into `foo-1.ts` and `foo-2.ts`, or extracting duplicated lines into a helper with five parameters and a couple of conditionals, satisfies the threshold while leaving the real problem in place. If a finding genuinely should not be fixed, snooze it *and say why in the PR body*.
 
 Never edit `.habit-hooks/snooze.json` by hand.
 
-### 3. The gate — this is the oracle
+### 3. The gate - this is the oracle
 
 ```bash
 mise run gate
@@ -58,7 +58,7 @@ If it fails:
 
 Your own belief that you fixed something is not evidence. The exit code is the evidence.
 
-### 4. Review — in a fresh context
+### 4. Review - in a fresh context
 
 Find the linked issue if there is one (`gh issue view <n>`, or a reference in the branch name or commits).
 
@@ -68,11 +68,11 @@ Invoke **`foundry:review`**. It runs three lenses (correctness, standards, spec)
 
 **Then verify, when there is a linked issue.** Invoke **`foundry:verify <n>`** to walk its acceptance criteria and Definition of Done, including DoD items the diff can't show, unless verify already passed in this session on this same change (the same HEAD and no edits since), as it has when `feature` hands over. Like review it is advisory: surface every fail and can't-check to the user before committing, and put its table in the PR body so the reviewer sees each DoD item's state. With no linked issue, skip it.
 
-> The built-in `/code-review` is a *different* tool — a fast, on-demand bug-and-cleanup pass the user runs by hand, with `--fix`. It is not part of `ship`.
+> The built-in `/code-review` is a *different* tool - a fast, on-demand bug-and-cleanup pass the user runs by hand, with `--fix`. It is not part of `ship`.
 
 ### 5. Commit
 
-Conventional commits. A body that says **why**, not what — the diff already says what. Note any deliberate snooze from step 2 and its justification.
+Conventional commits. A body that says **why**, not what - the diff already says what. Note any deliberate snooze from step 2 and its justification.
 
 ### 6. Open the PR and watch CI - in one non-blocking step
 

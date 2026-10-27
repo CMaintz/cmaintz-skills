@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Foundry — format-on-write (PostToolUse: Edit|Write|MultiEdit). Portable sh; runs
+# Foundry - format-on-write (PostToolUse: Edit|Write|MultiEdit). Portable sh; runs
 # anywhere bash does (Linux, macOS, Windows git-bash). Formats the single edited
 # file with prettier (else eslint --fix), sub-second. Opts in by tooling: no-ops
 # when the file's project has no local formatter, so it's safe to install globally.
@@ -7,7 +7,7 @@
 set -u
 
 payload=$(cat)
-# tool_input.file_path — no jq dependency; unescape JSON backslashes.
+# tool_input.file_path - no jq dependency; unescape JSON backslashes.
 file=$(printf '%s' "$payload" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1 | sed 's/\\\\/\\/g')
 [ -n "$file" ] || exit 0
 
