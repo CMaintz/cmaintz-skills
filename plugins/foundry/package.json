@@ -1,0 +1,11 @@
+{
+  "name": "cmaintz-foundry-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Runtime dependencies of the foundry plugin's MCP server (scripts/explain-mcp).",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
+  }
+}

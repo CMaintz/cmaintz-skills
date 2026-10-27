@@ -23,20 +23,21 @@ Confirm, and stop if any fails:
 
 Do not skip or reorder. Each step exists because the next is untrustworthy without it.
 
-### 1. Resolve and claim — atomically, before any work
+### 1. Resolve and claim, before any work
 
 Resolve the ticket: from `<ref>` in supervised mode, or the oldest `agent:ready` ticket that passes the completeness check in puller mode.
 
 **Completeness check** - the ticket has an intent, an acceptance-criteria checklist, a Definition of Done (a `- [ ]` checklist, or the sentinel `None beyond the acceptance criteria.`), and scope boundaries (the [schema](#the-ticket)). A missing or empty Definition of Done section fails the check: only the sentinel says "nothing extra". In puller mode, a ticket that fails is skipped. In supervised mode, interview the user to fill the gaps, then continue.
 
-**Claim** before writing a line of code. Pick the slug first, since the claim marker names the branch and worktree that step 2 creates. The claim unassigns the owner: an assignee means the ticket waits on a human (filed by `spec`, or blocked), and a working ticket waits on no one.
+**Claim** before writing a line of code. Pick the slug first, since the claim marker names the branch and worktree that step 2 creates. Generate a fresh nonce for this claim and keep it: every session shares one GitHub identity, and two sessions on one ticket pick the same slug, so only the nonce tells their markers apart. The claim unassigns the owner: an assignee means the ticket waits on a human (filed by `spec`, or blocked), and a working ticket waits on no one.
 
 ```bash
+od -An -N4 -tx1 /dev/urandom | tr -d ' \n'   # the nonce
 gh issue edit <n> --add-label agent:working --remove-label agent:ready --remove-assignee @me
-gh issue comment <n> --body "claimed by feat/<slug>-<n> at ../_wt/<slug>-<n>"
+gh issue comment <n> --body "claimed by feat/<slug>-<n> at ../_wt/<slug>-<n> session <nonce>"
 ```
 
-Then **re-read** the issue and confirm you hold it: `agent:working` and the latest claim marker is yours. Every session shares one GitHub identity, so only the marker tells two sessions apart. If it moved under you, or the latest marker names another worktree, another worker won the race - abandon it and, in puller mode, try the next ticket. The latest marker on a ticket:
+Then **re-read** the issue and confirm you hold it: `agent:working` and the latest claim marker ends in your nonce. If it moved under you, or the latest marker carries another nonce, another worker won the race - abandon it without creating or entering its worktree and, in puller mode, try the next ticket. The latest marker on a ticket:
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<n>/comments" --jq '.[].body | select(startswith("claimed by "))' | tail -n 1
@@ -44,7 +45,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/<n>/comments" --jq '.[].body | se
 
 It pages through every comment, so the marker is found on a long thread too, and prints nothing when the ticket has no marker.
 
-**WIP = 1 per session.** This session's worktree is the one it created in step 2, or entered to resume a ticket; a session with none holds nothing. Before claiming, list the `agent:working` tickets (`gh issue list --label agent:working --json number`) and read each one's latest marker. If one names this session's worktree, finish or release it first. A marker naming another worktree belongs to a sibling session, and a ticket with no marker belongs to no session; neither blocks this one. The limit is per session, not per machine, so parallel sessions in their own worktrees can each work a ticket while each still holds only one.
+**WIP = 1 per session.** This session's worktree is the one it created in step 2, or entered to resume a ticket; a session with none holds nothing. Before claiming, list the `agent:working` tickets (`gh issue list --label agent:working --json number`) and read each one's latest marker. If one carries the nonce recorded in this session's worktree (step 2), finish or release it first. A marker with another nonce belongs to a sibling session, and a ticket with no marker belongs to no session; neither blocks this one. The limit is per session, not per machine, so parallel sessions in their own worktrees can each work a ticket while each still holds only one.
 
 ### 2. Isolated worktree
 
@@ -52,9 +53,12 @@ One ticket, one worktree, one branch off `origin/main`, one PR — matching `col
 
 ```bash
 git worktree add -b feat/<slug>-<n> ../_wt/<slug>-<n> origin/main
+printf '%s\n' <nonce> > "$(git -C ../_wt/<slug>-<n> rev-parse --absolute-git-dir)/foundry-claim"
 ```
 
-Before creating it, sweep finished worktrees: for each entry in `git worktree list` other than the main checkout, apply `ship`'s step 8 checks and remove the ones that pass. A PR usually merges after the session that opened it has ended, so this sweep is what actually frees the disk. Worktrees that fail a check (an open PR, no PR, uncommitted work) stay.
+The second line records the claim's nonce in the worktree's own git dir, which is never committed and goes when the worktree does. "This worktree's nonce" below means that file's contents.
+
+Before creating it, sweep finished worktrees: apply `ship`'s step 8 to each entry in `git worktree list --porcelain` other than the main checkout. Its checks remove only worktrees Foundry made that are unlocked, merged, pushed and clean, without forcing. A PR usually merges after the session that opened it has ended, so this sweep is what actually frees the disk. Every other worktree stays; say which were removed and which were skipped, and why.
 
 Work only in that worktree so the main checkout stays untouched. Pinned tools (mise tools, the habit-hooks venv, PMD) are installed once per machine and shared, but a new worktree has neither mise trust nor the project's own dependencies. Run `mise trust`, `mise install`, then the repo's dependency install (`npm ci` for Node); `mise install` does not create `node_modules`, and without it the TypeScript smell sensors report their tools as missing instead of checking anything.
 
@@ -103,7 +107,7 @@ A green gate proves the code is *clean*; it does not prove the feature *works*. 
 
 ### 5. Hand to ship
 
-First read the latest claim marker again. Two sessions can each post a marker and each see their own on the step 1 re-read, if the second posts after the first has looked; only the later marker owns the ticket. If the latest marker now names another worktree, stop: leave the ticket to that session and do not ship.
+First read the latest claim marker again. Two sessions can each post a marker and each see their own on the step 1 re-read, if the second posts after the first has looked; only the later marker owns the ticket. If the latest marker no longer carries this worktree's nonce, stop: leave the ticket to that session and do not ship.
 
 Invoke **`foundry:ship`**. It re-runs the gate as the final authority, reviews the diff in a fresh context against the linked issue, writes a conventional commit, and opens the PR. Reference the ticket (`Closes #<n>`) so it closes on merge, and clear `agent:working`.
 
@@ -121,15 +125,15 @@ gh issue edit <n> --add-label agent:blocked --remove-label agent:working --add-a
 
 ## Stale-claim recovery
 
-Before claiming in puller mode, reset abandoned claims: any `agent:working` ticket **inactive for over 2 hours** returns to `agent:ready` (assigned back to the owner, as `spec` filed it), and is **resumed** from its thread + any open PR — not restarted. This is what stops one dead session (a crash, or the human's usage running out) from stranding a ticket forever.
+Before claiming in puller mode, reset abandoned claims: any `agent:working` ticket inactive for longer than the **stale window of 2 hours** returns to `agent:ready` (assigned back to the owner, as `spec` filed it), and is **resumed** from its thread + any open PR — not restarted. This is what stops one dead session (a crash, or the human's usage running out) from stranding a ticket forever. This is the only definition of the stale window: `repo-align` reclaims by it too, so change it here and nowhere else.
 
-Key off **inactivity, not "has no branch/PR"** — a session that already opened a PR then died must still be recoverable. A dead session can't release its own claim, so recovery has to be passive and time-based, done by the next puller pass. Measure inactivity as the most recent of: the issue's last timeline event, its linked PR's last update, or the working branch's last commit — reclaim only if that is older than 2 hours:
+Key off **inactivity, not "has no branch/PR"** — a session that already opened a PR then died must still be recoverable. A dead session can't release its own claim, so recovery has to be passive and time-based, done by the next puller pass. Measure inactivity as the most recent of: the issue's last timeline event, its linked PR's last update, or the working branch's last commit — reclaim only if that is older than the stale window:
 
 ```bash
 gh issue view <n> --json updatedAt --jq .updatedAt   # plus the linked PR's updatedAt, if any
 ```
 
-Reclaiming needs no claim marker: a dead session's ticket goes by the clock alone, whatever its marker says. The resuming session claims it through step 1 like any other ticket, posting a fresh marker that names its own worktree, so the latest marker always names the current owner. That comment is itself activity, so the inactivity clock restarts from the resume.
+Reclaiming needs no claim marker: a dead session's ticket goes by the clock alone, whatever its marker says. The resuming session claims it through step 1 like any other ticket, posting a fresh marker with its own nonce and recording that nonce in the worktree it resumes in, so the latest marker always names the current owner. That comment is itself activity, so the inactivity clock restarts from the resume.
 
 ## The ticket
 

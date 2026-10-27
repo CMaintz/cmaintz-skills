@@ -1,5 +1,5 @@
 import { JevError } from './errors.js';
-/** Build a pick-one question. `options` maps each label to when to pick it. */
+/** Build a pick-one question. `options` maps each label to when to pick it (null: no extra detail). */
 export const choice = (options, instructions = '') => ({
     type: 'choice',
     instructions,
@@ -38,7 +38,7 @@ export function validateQuestions(questions) {
         throw new JevRequestError(`invalid Jev questions: ${problems.join('; ')}`);
 }
 function questionProblems(key, q) {
-    const problems = q.instructions.trim() ? [] : [`${key}: empty instructions`];
+    const problems = isEmptyText(q.instructions) ? [`${key}: empty instructions`] : [];
     if (q.type === 'choice') {
         const n = Object.keys(q.criteria).length;
         if (n < 1 || n > QUESTION_LIMITS.maxChoiceOptions) {
@@ -52,4 +52,10 @@ function questionProblems(key, q) {
         }
     }
     return problems;
+}
+/** A blank string, or an object or array with nothing in it. */
+function isEmptyText(text) {
+    if (typeof text === 'string')
+        return !text.trim();
+    return Array.isArray(text) ? text.length === 0 : Object.keys(text).length === 0;
 }

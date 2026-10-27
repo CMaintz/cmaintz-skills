@@ -1,6 +1,6 @@
 ---
 name: pr-ci-watch
-description: Loop a PR's CI result back to a working agent WITHOUT blocking it. Spawn a Herdr monitor pane that watches the PR's checks while the main agent keeps coding, then read the verdict and, on failure, fix, push and re-watch until green. Use right after you open or push to a PR and want CI watched in the background instead of blocking the whole session on `gh pr checks --watch`; it is the non-blocking form of ship's watch-CI step. Prefers `foundry-pr-report` for the verdict when present, and falls back to a Claude Code background task when not running inside Herdr. Triggers: watch a PR's CI, get CI results without waiting, background or non-blocking CI watch, keep working while checks run.
+description: Loop a PR's CI result back to a working agent WITHOUT blocking it. Spawn a Herdr monitor pane that watches the PR's checks while the main agent keeps coding, then read the verdict and, on failure, fix, push and re-watch until green. Use right after you open or push to a PR and want CI watched in the background instead of blocking the whole session on `gh pr checks --watch`; it is the non-blocking form of ship's watch-CI step. Judges the pushed commit's checks with `foundry-pr-watch`, and falls back to a Claude Code background task when not running inside Herdr. Triggers: watch a PR's CI, get CI results without waiting, background or non-blocking CI watch, keep working while checks run.
 ---
 
 # pr-ci-watch
@@ -16,9 +16,12 @@ observe->fix->verify loop is the same; only the waiting is moved off the critica
 Two reusable pieces sit underneath it, and the skill degrades gracefully when either is
 missing:
 
-- **`foundry-pr-report`** (ships with this plugin, at `${CLAUDE_PLUGIN_ROOT}/scripts/`) is
-  the verdict core: it prints a pass/fail summary plus the failing-step logs, so the pane
-  ends holding everything you need.
+- **`foundry-pr-watch`** (ships with this plugin, at `${CLAUDE_PLUGIN_ROOT}/scripts/`) is
+  the watch core: it waits until the PR's head is the commit you just pushed and that commit
+  has checks, watches them, then runs `foundry-pr-report` for a pass/fail summary plus the
+  failing-step logs. Never watch with a bare `gh pr checks --watch` right after a push:
+  GitHub still shows the previous commit's finished checks for a while, so it returns the
+  old verdict.
 - **Herdr** is the thin non-blocking wrapper. Absent (`HERDR_ENV` unset), the skill falls
   back to a Claude Code background task, which still gets you the result without blocking,
   just without a visible pane.
@@ -51,24 +54,29 @@ the agent keeps working and is handed the result on completion rather than polli
 CI can run for many minutes, so set a generous timeout (well above the default) so the
 watch is not killed before CI finishes.
 
+Run it from the worktree whose HEAD you pushed (it judges HEAD's checks; pass `--sha` for
+another commit):
+
 ```bash
-gh pr checks "$pr" --watch --interval 30
+"${CLAUDE_PLUGIN_ROOT}/scripts/foundry-pr-watch" "$pr"
 ```
 
-When it returns: if it failed, read the failing logs with `gh run view --log-failed`, fix
-the cause in the working tree, commit, push, and start a fresh background watch. Repeat
-until the checks pass.
+When it returns, its exit code is the verdict: 0 green, 1 a check failed (the failing logs
+are in its output), 2 nothing to judge (it says why: the head never reached your commit, or
+no checks registered). On 1, fix the cause in the working tree, commit, push, and start a
+fresh background watch. Repeat until it exits 0.
 
 ## Monitor-pane path (inside Herdr)
 
 ### 1. Build the watch command
 
-The verdict core is `${CLAUDE_PLUGIN_ROOT}/scripts/foundry-pr-report`. An end sentinel is
-appended so completion is detectable by reading the pane (see step 4).
+An end sentinel carrying the exit code is appended so completion and the verdict are
+detectable by reading the pane (see step 4). `%q` quotes the plugin path, which can contain
+spaces (a Windows profile like `C:/Users/John Smith`).
 
 ```bash
-report="${CLAUDE_PLUGIN_ROOT}/scripts/foundry-pr-report"
-watch_cmd="gh pr checks $pr --watch --interval 30; echo '---REPORT---'; $report $pr; echo '---PR-CI-WATCH-DONE---'"
+watch=$(printf '%q' "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-pr-watch")
+watch_cmd="$watch $pr; echo \"---PR-CI-WATCH-DONE--- exit \$?\""
 ```
 
 ### 2. Spawn a non-blocking sibling pane
@@ -115,15 +123,14 @@ platforms (Windows git-bash) `process-info` reports only the shell as the foregr
 process even while the watch runs; use `process-info` as a secondary hint on Linux and
 macOS, where the live `gh` process does show up.
 
-Read the verdict from the pane text: the lines after `---REPORT---` when `foundry-pr-report`
-ran, otherwise the final `gh pr checks` table.
+Read the verdict from the sentinel's exit code, with the same meaning as in the fallback
+path (0 green, 1 failed, 2 nothing to judge), and the report lines above it.
 
 ### 5. On failure: fix, push, re-watch
 
 If CI failed:
 
-1. Get the failing logs. They are already in the pane when `foundry-pr-report` ran; if not,
-   run `gh run view --log-failed` in the main pane.
+1. Get the failing logs. They are already in the pane, from `foundry-pr-report`.
 2. Fix the real cause in the main pane. Never weaken a rule to pass a check.
 3. Commit and push.
 4. Spawn a **fresh** monitor pane (back to step 2) for the new run.
@@ -148,5 +155,6 @@ Only ever close a pane **you** created (the `$pane` from step 2). Never close
 - A green local gate is necessary but not sufficient, which is the whole reason to watch
   CI: CI runs jobs the six-verb gate does not (smells-vs-baseline, secret scan, SAST,
   dependency review). This skill is how you close that gap without blocking.
-- The verdict core is deliberately `foundry-pr-report`, not bespoke parsing here, so the
-  pass/fail logic stays in one reusable Foundry primitive and Herdr stays a thin wrapper.
+- The watch and verdict live in `foundry-pr-watch` and `foundry-pr-report`, not in bespoke
+  parsing here, so the pass/fail logic stays in reusable Foundry primitives and Herdr stays
+  a thin wrapper.
