@@ -111,6 +111,9 @@ line count, and never with a change designed only to appease the tool.
   dead-code            nothing references it             -> delete it
 Clearing a smell is necessary, not sufficient - "is this one thing?" is still your
 call. Fix it (or, if it's genuinely warranted, say why) before finishing.
+Only ENFORCED smells block this stop. SUGGESTED ones printed beside them
+(non-essential-comment, duplicated-code, ...) are yours to judge: fix them when
+right, leave them when wrong. Never delete a comment that says why to quiet one.
 LEGEND
 } >&2
 exit 2
