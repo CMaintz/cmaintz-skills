@@ -23,7 +23,7 @@ An agent is fast and confident, and neither makes it right. These skills and hoo
 
 **Ground the agent in the code as it is.** A cited, verified codemap gives `spec`, `feature` and `review` the same picture of the repo, so pointers are real and edge cases come from actual flows.
 
-**Green is not correct.** A green gate means clean code, not finished work. `feature` checks every acceptance criterion and Definition of Done item, and `review` holds the diff to them in a fresh context that doesn't share the author's. Reviewers advise; only the gate blocks.
+**Green is not correct.** A green gate means clean code, not finished work. `verify` walks every acceptance criterion and Definition of Done item in a fresh context that sees only the ticket and the diff, reporting pass or fail with evidence, and `review` holds the diff to them in a fresh context too. Both are model judgement, not a deterministic check: they advise; only the gate blocks.
 
 **One path to main.** Every change leaves through `ship`, and a hook denies the shortcut, so no PR skips the gate or the review.
 
@@ -48,8 +48,8 @@ Only `plugins/foundry/` is installed; the rest of the repo (CI, docs, `mise.toml
 
 1. **`codemap`** maps the repo once, and refreshes only the slices that went stale.
 2. **`spec`** turns an idea into a testable ticket and files it as `agent:ready`.
-3. **`feature`** claims it, works it in its own worktree and loops on `mise run gate` until green.
-4. **`ship`** re-gates, reviews in a fresh context, commits and opens a draft PR.
+3. **`feature`** claims it, works it in its own worktree, loops on `mise run gate` until green, then has **`verify`** check it against the ticket.
+4. **`ship`** re-gates, reviews (and verifies, if `feature` didn't) in a fresh context, commits and opens a draft PR.
 5. **CI** is watched without blocking; a red run is fixed and re-pushed, and the PR goes ready once green.
 6. **`learn`** (from [ivetts-skills](https://github.com/devill/ivetts-skills)) turns what went wrong into a hook, a rule or a skill, so the next loop starts better.
 
@@ -58,9 +58,10 @@ The hooks run underneath every step.
 ## Skills
 
 - `spec`: turns a rough idea into a testable spec through a short back-and-forth: acceptance criteria plus a Definition of Done kept separate from them. Its procedure drops DoD items that only restate gate or `ship` checks and files only after you explicitly approve the full ticket; nothing checks the filed ticket's shape. With a codemap, its pointers come from the owning slices and must exist in the tree.
-- `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), walks every acceptance criterion and DoD item, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
-- `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review against the linked issue, a conventional commit, then a draft PR through `foundry-ship-pr`, which watches CI and marks the PR ready once green. Review happens before the PR exists, which also keeps API keys out of CI.
+- `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), runs `verify` and fixes what it fails, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
+- `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review and `verify` against the linked issue (with the verify table in the PR body), a conventional commit, then a draft PR through `foundry-ship-pr`, which watches CI and marks the PR ready once green. Review happens before the PR exists, which also keeps API keys out of CI.
 - `review`: one reviewer instead of three. Correctness, standards and spec lenses in fresh sub-agents, scaled to the size of the change, plus a red-team lens at `high` effort. A fresh refuter then tries to disprove each finding, and only the survivors are reported. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
+- `verify`: checks a change against its ticket. A read-only fresh-context subagent gets only the ticket, the diff and the means to check (tests, the app, `gh`), and returns pass, fail or can't check with evidence for every acceptance criterion and DoD item, including DoD items outside the diff. Advisory, and with no ticket it stops rather than inventing criteria. Run it yourself (`/foundry:verify [ref]`); `feature` and `ship` call it too.
 - `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. Foundry's `mise run codemap:check` fails when a citation no longer resolves and reports how many commits each slice is behind. It is advisory and not part of `gate`, so nothing fails a build on it; run it yourself.
 - `pr-ci-watch`: loops a PR's CI result back without blocking. Watches the checks in a Herdr pane (or a background task outside Herdr) while the agent keeps working, and on failure fixes, pushes and re-watches.
 - `loop-report`: reads Foundry's verb telemetry to show where the gate spends time and whether the loop is converging or thrashing. Read-only.

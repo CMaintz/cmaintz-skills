@@ -99,9 +99,11 @@ Run `mise run smells` when `mise tasks ls` lists a top-level `smells` task: it r
 
 On exhaustion or no-progress, [escalate](#escalation).
 
-### 4. Verify — behaviourally, against every criterion
+### 4. Verify - against every criterion
 
-A green gate proves the code is *clean*; it does not prove the feature *works*. Invoke the `verify` skill (or `run`) and walk the acceptance checklist **item by item** - every criterion accounted for, pass or fail. Then walk the Definition of Done the same way, reporting each item pass or fail; the sentinel `None beyond the acceptance criteria.` adds nothing to walk. If an acceptance criterion or a DoD item cannot be met, [escalate](#escalation).
+A green gate proves the code is *clean*; it does not prove the feature *works*. Invoke **`foundry:verify <n>`**: a fresh-context subagent walks every acceptance criterion and Definition of Done item, including DoD items outside the diff, and returns each as pass, fail or can't check, with evidence.
+
+Act only on that verdict: fix each failed item, re-run the step 3 loop, then verify again. If an item cannot be met, or can't be checked without a human, [escalate](#escalation).
 
 **Optional Jev pre-check (advisory, opt-in, off by default).** Enabled only when `JEV_FEATURE_PRECHECK` is truthy (and `JEV_API_KEY` is set); otherwise the script no-ops and proceeds, so it is safe to call unconditionally. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/jev/precheck.mjs" satisfies "<acceptance criteria>" <base>`. A `proceed: false` (a confident "no") means the diff likely misses a criterion, so fix that before spending the full verify. Anything else (uncertain, disabled, or no key) proceeds to the verify below. This never replaces the verify; it only avoids spending one on an obvious miss. (The same script's `ready` mode can pre-screen a ticket's completeness in puller mode at step 1.) Enable with `export JEV_FEATURE_PRECHECK=1`, disable by unsetting it.
 

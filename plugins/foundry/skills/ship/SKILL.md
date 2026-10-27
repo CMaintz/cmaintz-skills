@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Take a finished change from working tree to pull request through the Foundry gate — auto-fix, structural smells, a green gate, a fresh-context review against the linked issue, a conventional commit, then the PR. Invoke this to land ANY finished change: run it BEFORE you `git commit`/`git push`/`gh pr create` yourself — it is the way work leaves the working tree, not only a response to the user saying "ship". Triggers: a change is complete or ready, you're about to commit or open/raise a PR, or the user asks to ship.
+description: Take a finished change from working tree to pull request through the Foundry gate — auto-fix, structural smells, a green gate, a fresh-context review and verify against the linked issue, a conventional commit, then the PR. Invoke this to land ANY finished change: run it BEFORE you `git commit`/`git push`/`gh pr create` yourself — it is the way work leaves the working tree, not only a response to the user saying "ship". Triggers: a change is complete or ready, you're about to commit or open/raise a PR, or the user asks to ship.
 ---
 
 # ship
@@ -65,6 +65,8 @@ Find the linked issue if there is one (`gh issue view <n>`, or a reference in th
 The review **must run in a context that never saw the code being written**. This is not ceremony: an agent reviewing its own work reviews its *intent* rather than its *diff*, and will confidently miss what it meant to do but didn't. A fresh context has no intent to be loyal to.
 
 Invoke **`foundry:review`**. It runs three lenses (correctness, standards, spec) in fresh-context sub-agents scaled to the diff size, folds in a repo-local `build-project-review` skill if one exists, and reports deduped findings that survived a fresh refuter's attempt to disprove them. It's the single entry point precisely so `ship` (and you) don't juggle reviewers. Surface what it finds to the user before committing.
+
+**Then verify, when there is a linked issue.** Invoke **`foundry:verify <n>`** to walk its acceptance criteria and Definition of Done, including DoD items the diff can't show, unless verify already passed in this session on this same change (the same HEAD and no edits since), as it has when `feature` hands over. Like review it is advisory: surface every fail and can't-check to the user before committing, and put its table in the PR body so the reviewer sees each DoD item's state. With no linked issue, skip it.
 
 > The built-in `/code-review` is a *different* tool — a fast, on-demand bug-and-cleanup pass the user runs by hand, with `--fix`. It is not part of `ship`.
 
