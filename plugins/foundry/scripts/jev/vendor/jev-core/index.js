@@ -1,6 +1,6 @@
 export { TypeSafeProvider } from './typesafe.js';
 export { CloudflareProvider } from './cloudflare.js';
-export { postJson } from './http.js';
+export { DEFAULT_TIMEOUT_MS, postJson } from './http.js';
 export { parseJevResponse } from './validate.js';
 export { stableStringify } from './stable-stringify.js';
 export { createProvider } from './create-provider.js';

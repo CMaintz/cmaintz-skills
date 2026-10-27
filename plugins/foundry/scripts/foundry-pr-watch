@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# foundry-pr-watch - block until a PR's checks for the commit just pushed have finished, then
+# print foundry-pr-report's verdict. pr-ci-watch runs it in a background task or a Herdr
+# pane, so the blocking happens off the agent's critical path.
+#
+#   Usage: foundry-pr-watch [<pr>] [--sha <sha>] [--repo <owner/repo>]
+#     <pr>   PR number or URL; defaults to the PR for the current branch.
+#     --sha  the commit whose checks to judge; defaults to HEAD, the commit just pushed.
+#   Exit:  mirrors foundry-pr-report - 0 all passed, 1 a check failed, 2 still pending, the
+#          PR head never reached <sha>, or no checks registered for it.
+set -euo pipefail
+
+PR=""; SHA=""; REPO=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --sha) SHA="$2"; shift 2 ;;
+    --repo) REPO=(--repo "$2"); shift 2 ;;
+    -*) echo "foundry-pr-watch: unknown flag: $1" >&2; exit 2 ;;
+    *) PR="$1"; shift ;;
+  esac
+done
+
+here=$(cd "$(dirname "$0")" && pwd)
+[ -n "$SHA" ] || SHA=$(git rev-parse HEAD)
+[ -n "$PR" ] || PR=$(gh pr view "${REPO[@]}" --json number -q .number)
+
+# Overridable so the test can poll without sleeping.
+POLL_SECONDS="${FOUNDRY_PR_WATCH_POLL_SECONDS:-15}"
+
+# Same wait as foundry-ship-pr's: right after a push GitHub still reports the previous head
+# and its finished checks, so watching straight away would judge the old commit's run.
+# Returns 0 when checks appear, 1 when the head never reached the commit, 2 when it did
+# but no checks registered.
+wait_for_checks() {
+  local head reached=0 n
+  for _ in $(seq 1 20); do
+    head=$(gh pr view "$PR" "${REPO[@]}" --json headRefOid -q .headRefOid 2> /dev/null || true)
+    if [ "$head" = "$SHA" ]; then
+      reached=1
+      n=$(gh pr checks "$PR" "${REPO[@]}" --json name -q 'length' 2> /dev/null || echo 0)
+      [ "${n:-0}" -gt 0 ] && return 0
+    fi
+    sleep "$POLL_SECONDS"
+  done
+  [ "$reached" -eq 1 ] && return 2
+  return 1
+}
+
+waited=0
+wait_for_checks || waited=$?
+if [ "$waited" -eq 1 ]; then
+  echo "foundry-pr-watch: PR head never reached ${SHA:0:7} after 5m - push it first, or pass" >&2
+  echo "  the pushed commit with --sha" >&2
+  exit 2
+elif [ "$waited" -eq 2 ]; then
+  echo "foundry-pr-watch: no checks registered for ${SHA:0:7} after 5m - this branch may have no CI, or a" >&2
+  echo "  workflow failed to parse (a 0s run is invisible to gh pr checks; gh run list shows it)" >&2
+  exit 2
+fi
+gh pr checks "$PR" "${REPO[@]}" --watch --interval 30 || true
+exec "$here/foundry-pr-report" "$PR" "${REPO[@]}"

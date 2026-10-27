@@ -1,4 +1,4 @@
-import { postJson } from './http.js';
+import { DEFAULT_TIMEOUT_MS, postJson } from './http.js';
 import { parseJevResponse } from './validate.js';
 /**
  * Cloudflare Workers AI adapter. Model slug: `typesafe/jev`.
@@ -13,14 +13,16 @@ export class CloudflareProvider {
     accountId;
     apiToken;
     model;
-    constructor(accountId, apiToken, model = 'typesafe/jev') {
-        this.accountId = accountId;
-        this.apiToken = apiToken;
-        this.model = model;
+    timeoutMs;
+    constructor(opts) {
+        this.accountId = opts.accountId;
+        this.apiToken = opts.apiToken;
+        this.model = opts.model ?? 'typesafe/jev';
+        this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     }
     async evaluate(req, opts = {}) {
         const url = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/ai/run`;
-        const json = await postJson(url, { Authorization: `Bearer ${this.apiToken}` }, { model: this.model, input: { state: req.state, questions: req.questions } }, opts);
+        const json = await postJson(url, { Authorization: `Bearer ${this.apiToken}` }, { model: this.model, input: { state: req.state, questions: req.questions } }, { timeoutMs: this.timeoutMs, ...opts });
         return parseJevResponse(json, req.questions);
     }
 }
