@@ -78,21 +78,27 @@ Conventional commits. A body that says **why**, not what - the diff already says
 
 Write the PR body to a file first: what changed, why, anything a reviewer should look at, and any baseline movement. It goes in a **file**, never on the command line, because the `guard-pr-create.sh` hook denies a raw `gh pr create` (so no agent skips steps 1-5) and prose that mentions `gh pr create` would otherwise trip it.
 
-The sanctioned path is **`foundry-ship-pr`**: it pushes the branch, opens a draft PR, then watches CI and marks the PR ready once green. It runs `gh pr create` as a subprocess, which the hook never sees, so it is the one way through. Launch it **in the background** (Bash tool `run_in_background: true`, or a Herdr pane when `HERDR_ENV=1`) so the session is not blocked while CI runs:
+The sanctioned path is **`foundry-ship-pr`**: it pushes the branch, opens a draft PR, then starts the `pr-ci-watch` watcher (`foundry-pr-watch --ready-on-green`) in the background, which marks the PR ready once green. It runs `gh pr create` as a subprocess, which the hook never sees, so it is the one way through. Run it from the worktree whose branch you are shipping, as an ordinary (foreground) Bash call: it returns as soon as the PR is open, because the watch is already off the critical path. There is no `--repo`: the repo is the one the checkout's `origin` points at, linked worktrees included.
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/foundry-ship-pr" --body-file <file> [--title-file <file>]
+"${CLAUDE_PLUGIN_ROOT}/scripts/foundry-ship-pr" --body-file <file> [--title-file <file>] [--base <branch>]
 ```
 
-The PR URL lands in `.foundry/pr-url` within seconds of launch; read it there to reference the PR while CI runs. The script's exit mirrors the CI verdict (0 passed, 1 failed, 2 pending/no-checks); 3 means the push itself was rejected, so rebase or fix the branch rather than looking for CI logs.
+It prints the PR URL (also written to `.foundry/pr-url`) and where the watch runs: a sibling Herdr pane when `HERDR_ENV=1`, else a detached process logging to `.foundry/pr-watch.log`. Exit 0 means the PR is open and the watch started; 3 means the push itself was rejected, so rebase or fix the branch rather than looking for CI logs.
 
 If the change **loosens** the gate alongside source (grows a suppression baseline, lowers a threshold, edits a lint rule) the PR needs the `ruleset-change` label or `ruleset-guard` will fail it. Tightening does not: a baseline that only shrank because `mise run fix` pruned it ships with the source fix, no label needed. That is the rule working - do not route around it by splitting the commit dishonestly.
 
 ### 7. Act on the verdict - do NOT assume green
 
-A green local `gate` is necessary, not sufficient. CI runs checks your six-verb gate does **not**: the smells-vs-baseline job, secret scan, SAST (semgrep/CodeQL), dependency review. So when the background `foundry-ship-pr` returns, you **must act on its result** - "I pushed, so it's green" is exactly how a red PR gets left behind.
+A green local `gate` is necessary, not sufficient. CI runs checks your six-verb gate does **not**: the smells-vs-baseline job, secret scan, SAST (semgrep/CodeQL), dependency review. So when the watch finishes, you **must act on its result** - "I pushed, so it's green" is exactly how a red PR gets left behind.
 
-On failure, take the failing-step logs it printed and run the observe->fix->verify loop: fix the real cause, commit, and re-launch `foundry-ship-pr` (idempotent - it pushes the new commit, finds the existing PR and watches that commit's checks). For a finer-grained or Herdr-pane watch, **`foundry:pr-ci-watch`** owns that; `foundry-ship-pr` is the default because it is the create path too. Genuinely baseline-only bot PRs are the only ones that legitimately skip the watch.
+Collect the verdict the way **`foundry:pr-ci-watch`** does: keep working, and check between other steps for the `---PR-CI-WATCH-DONE--- exit <n>` line (0 passed and the PR is now ready, 1 a check failed, 2 nothing to judge). In Herdr, read the pane the script named (`herdr pane read <pane> --source recent-unwrapped --lines 200`) and close it once you are done with it. Outside Herdr, have the session woken when it lands by starting a background Bash task (`run_in_background: true`, generous timeout) that waits on the log:
+
+```bash
+until grep -q -- '---PR-CI-WATCH-DONE---' .foundry/pr-watch.log; do sleep 15; done; cat .foundry/pr-watch.log
+```
+
+On failure, take the failing-step logs above the sentinel and run the observe->fix->verify loop: fix the real cause, commit, and re-run `foundry-ship-pr` (idempotent - it pushes the new commit, finds the existing PR and starts a fresh watch of that commit's checks). Genuinely baseline-only bot PRs are the only ones that legitimately skip the watch.
 
 ### 8. Clean up the worktree once merged
 

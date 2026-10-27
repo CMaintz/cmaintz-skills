@@ -3,17 +3,20 @@
 # print foundry-pr-report's verdict. pr-ci-watch runs it in a background task or a Herdr
 # pane, so the blocking happens off the agent's critical path.
 #
-#   Usage: foundry-pr-watch [<pr>] [--sha <sha>] [--repo <owner/repo>]
+#   Usage: foundry-pr-watch [<pr>] [--sha <sha>] [--ready-on-green] [--repo <owner/repo>]
 #     <pr>   PR number or URL; defaults to the PR for the current branch.
 #     --sha  the commit whose checks to judge; defaults to HEAD, the commit just pushed.
+#     --ready-on-green  mark the draft PR ready once the verdict is green. foundry-ship-pr
+#            passes it, because a PR opens as a draft and becomes ready only once CI is green.
 #   Exit:  mirrors foundry-pr-report - 0 all passed, 1 a check failed, 2 still pending, the
 #          PR head never reached <sha>, or no checks registered for it.
 set -euo pipefail
 
-PR=""; SHA=""; REPO=()
+PR=""; SHA=""; READY=0; REPO=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --sha) SHA="$2"; shift 2 ;;
+    --ready-on-green) READY=1; shift ;;
     --repo) REPO=(--repo "$2"); shift 2 ;;
     -*) echo "foundry-pr-watch: unknown flag: $1" >&2; exit 2 ;;
     *) PR="$1"; shift ;;
@@ -58,4 +61,9 @@ elif [ "$waited" -eq 2 ]; then
   exit 2
 fi
 gh pr checks "$PR" "${REPO[@]}" --watch --interval 30 || true
-exec "$here/foundry-pr-report" "$PR" "${REPO[@]}"
+rc=0
+"$here/foundry-pr-report" "$PR" "${REPO[@]}" || rc=$?
+if [ "$rc" -eq 0 ] && [ "$READY" -eq 1 ]; then
+  gh pr ready "$PR" "${REPO[@]}" || echo "foundry-pr-watch: CI is green but marking the PR ready failed" >&2
+fi
+exit "$rc"
