@@ -178,6 +178,59 @@ test('minimal-API routes carry their MapGroup prefix and a method-group handler 
   ]);
 });
 
+test('Angular routes resolve to the component they load, with the paths of their parents', () => {
+  const root = fixture([{
+    'web/src/app/app.routes.ts': [
+      "import { Routes } from '@angular/router';",
+      'export const routes: Routes = [',
+      "  { path: '', pathMatch: 'full', loadComponent: () => import('./features/landing/landing.page').then((m) => m.LandingPage) },",
+      "  { path: 'u/:handle', title: 'A {braced} title', component: PortfolioPage },",
+      '  {',
+      "    path: '',",
+      '    canActivate: [authGuard],',
+      '    children: [',
+      "      { path: 'dashboard', loadComponent: () =>",
+      "          import('./features/dashboard/dashboard.page').then(m => m.DashboardPage) },",
+      "      { path: 'settings', children: [{ path: 'profile', component: ProfilePage }] },",
+      '    ],',
+      '  },',
+      "  { path: 'admin', loadChildren: () => import('./admin/admin.routes').then((m) => m.ADMIN_ROUTES) },",
+      "  { path: 'old', redirectTo: 'dashboard' },",
+      "  { path: '**', loadComponent: () => import('./not-found.page') },",
+      '];',
+    ].join('\n'),
+    'web/src/main.ts': "bootstrapApplication(App, { providers: [provideRouter([{ path: 'x', component: X }])] });\n",
+    'web/src/app/more.routes.ts': [
+      'export const more: Routes = [',
+      "  // Can't be lazy: { path: 'legacy', component: LegacyPage },",
+      "  /* { path: 'old', component: OldPage }, */",
+      "  { path: 'alias', loadChildren: () => import('@app/alias/alias.routes').then((m) => m.ALIAS) },",
+      "  { path: 'dir', loadChildren: () => import('./dir').then((m: any) => m.DIR_ROUTES) },",
+      "  { path: 'await', loadComponent: async () => (await import('./await.page')).AwaitPage },",
+      "  { path: 'destructured', loadComponent: () => import('./d.page').then(({ DPage }) => DPage) },",
+      '];',
+    ].join('\n'),
+  }]);
+
+  const routes = census(root).entrypoints
+    .filter((e) => e.kind === 'ui-route')
+    .map((e) => `${e.route} ${e.symbol ?? '-'} ${e.path}${e.line ? `:${e.line}` : ''}`);
+
+  assert.deepEqual(routes, [
+    '/admin ADMIN_ROUTES web/src/app/admin/admin.routes.ts',
+    '/u/:handle PortfolioPage web/src/app/app.routes.ts:4',
+    '/settings/profile ProfilePage web/src/app/app.routes.ts:11',
+    '/await AwaitPage web/src/app/await.page.ts',
+    '/destructured DPage web/src/app/d.page.ts',
+    '/dashboard DashboardPage web/src/app/features/dashboard/dashboard.page.ts',
+    '/ LandingPage web/src/app/features/landing/landing.page.ts',
+    '/alias ALIAS web/src/app/more.routes.ts:4',
+    '/dir DIR_ROUTES web/src/app/more.routes.ts:5',
+    '/** - web/src/app/not-found.page.ts',
+    '/x X web/src/main.ts:1',
+  ]);
+});
+
 test('a gitignored file is never reported, even when it would match every detector', () => {
   const root = fixture([
     {
