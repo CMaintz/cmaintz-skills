@@ -58,7 +58,9 @@ fix likely broke an earlier one; diff the two green points before another gate r
 
 ## Notes
 
-- Smell-trend convergence (is the structural-smell count monotonically falling?) needs
-  the habit-hooks Stop hook to emit counts — a planned follow-on. Until then thrash is
-  derived from verb pass→fail regressions only; say so if asked for smell trends.
+- Smell-trend convergence (does a cleared structural smell come back?) is in the report:
+  foundry-smells folds per-smell counts into each `smells`-task scan line, and the
+  "Smells:" line flags a smell that returned after being cleared as non-converging. It
+  covers gate/pre-push/CI scans only - the habit-hooks Stop hook does not feed counts, so
+  in-loop rounds between gate runs are not in the series.
 - `.foundry/` is gitignored — this is local observability, never a committed baseline.
