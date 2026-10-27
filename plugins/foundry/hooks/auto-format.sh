@@ -2,7 +2,8 @@
 # Foundry - format-on-write (PostToolUse: Edit|Write|MultiEdit). Portable sh; runs
 # anywhere bash does (Linux, macOS, Windows git-bash). Formats the single edited
 # file with prettier (else eslint --fix), sub-second. Opts in by tooling: no-ops
-# when the file's project has no local formatter, so it's safe to install globally.
+# when the file's project has no local formatter, or has prettier but no Prettier config,
+# so it's safe to install globally.
 # Java/Kotlin are handled at Stop by format-java-stop.sh (Gradle is too slow per-edit).
 set -u
 
@@ -44,6 +45,17 @@ run_tool() {
 }
 
 if [ -e "$bin/prettier" ] || [ -e "$bin/prettier.cmd" ]; then
+  # A prettier that arrived only as a transitive dependency still lands in .bin; with no
+  # project config it would restyle every edited file to its defaults. No eslint fallback
+  # here: eslint only ever runs where prettier is absent.
+  if ! run_tool "$bin/prettier" --find-config-path "$toolfile" >/dev/null 2>&1; then
+    # additionalContext, not stderr: a PostToolUse hook's stderr on exit 0 reaches neither
+    # the model nor the user, and the agent is the one who can act on the hint.
+    hint="auto-format: no Prettier config for $toolfile, so prettier was not run (its defaults would restyle the repo); scaffold one matched to the repo's style with Foundry's scripts/prettier-config.mjs (foundry-init.sh ts runs it)."
+    printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' \
+      "$(printf '%s' "$hint" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+    exit 0
+  fi
   run_tool "$bin/prettier" --write --log-level warn -- "$toolfile" >/dev/null 2>&1
   exit 0
 fi
