@@ -29,13 +29,14 @@ description = "Type checking. None yet"
 run = "true"
 
 [tasks.test]
-description = "Node unit tests and the pre-commit hook test"
+description = "Node unit tests and the shell tests for hooks and scripts"
 # Quoted so node expands the glob, not the shell (bash has no ** without globstar).
 run = [
     "node --test \"plugins/foundry/scripts/**/*.test.mjs\"",
     "bash tests/pre-commit.test.sh",
     "bash tests/habit-hooks-guard.test.sh",
     "bash tests/foundry-ship-pr.test.sh",
+    "bash tests/guard-governance-labels.test.sh",
 ]
 
 [tasks.audit]
