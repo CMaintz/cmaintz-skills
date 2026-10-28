@@ -4,7 +4,8 @@
 # pane, so the blocking happens off the agent's critical path.
 #
 #   Usage: foundry-pr-watch [<pr>] [--sha <sha>] [--ready-on-green] [--repo <owner/repo>]
-#     <pr>   PR number or URL; defaults to the PR for the current branch.
+#     <pr>   PR number or URL; defaults to the PR for the current branch, with --repo too
+#            (looked up by the current branch's name in that repo).
 #     --sha  the commit whose checks to judge; defaults to HEAD, the commit just pushed.
 #     --ready-on-green  mark the draft PR ready once the verdict is green. foundry-ship-pr
 #            passes it, because a PR opens as a draft and becomes ready only once CI is green.
@@ -25,7 +26,18 @@ done
 
 here=$(cd "$(dirname "$0")" && pwd)
 [ -n "$SHA" ] || SHA=$(git rev-parse HEAD)
-[ -n "$PR" ] || PR=$(gh pr view "${REPO[@]}" --json number -q .number)
+if [ -z "$PR" ]; then
+  # gh refuses `pr view --repo` with no PR, so with --repo look the PR up by branch name.
+  branch=()
+  if [ ${#REPO[@]} -gt 0 ]; then
+    branch=("$(git branch --show-current 2> /dev/null || true)")
+    if [ -z "${branch[0]}" ]; then
+      echo "foundry-pr-watch: --repo needs a PR and HEAD is detached; pass the PR number" >&2
+      exit 2
+    fi
+  fi
+  PR=$(gh pr view "${branch[@]}" "${REPO[@]}" --json number -q .number)
+fi
 
 # Overridable so the test can poll without sleeping.
 POLL_SECONDS="${FOUNDRY_PR_WATCH_POLL_SECONDS:-15}"

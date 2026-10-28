@@ -6,7 +6,8 @@
 # caller gets the actual error text, not just a red X.
 #
 #   Usage: foundry-pr-report [<pr>] [--repo <owner/repo>]
-#     <pr>  PR number or URL; defaults to the PR for the current branch.
+#     <pr>  PR number, URL or branch; defaults to the PR for the current branch, with
+#           --repo too (looked up by the current branch's name in that repo).
 #   Exit:  0 all checks passed or were skipped; 1 one or more failed/cancelled;
 #          2 checks still pending (nothing to judge yet).
 set -euo pipefail
@@ -20,8 +21,16 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# `gh pr checks` with no positional arg targets the current branch's PR; pass <pr> only
-# when given (an empty string would be a bad argument).
+# `gh pr checks` with no positional arg targets the current branch's PR, but gh refuses
+# that once --repo is given, so name the current branch there instead. Never pass an
+# empty string: gh takes it as a bad argument.
+if [ -z "$PR" ] && [ ${#REPO[@]} -gt 0 ]; then
+  PR=$(git branch --show-current 2> /dev/null || true)
+  if [ -z "$PR" ]; then
+    echo "foundry-pr-report: --repo needs a PR and HEAD is detached; pass the PR number" >&2
+    exit 2
+  fi
+fi
 PRARG=()
 if [ -n "$PR" ]; then PRARG=("$PR"); fi
 

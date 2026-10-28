@@ -51,6 +51,7 @@ run = [
     "bash tests/foundry-loop-report.test.sh",
     "bash tests/guard-governance-labels.test.sh",
     "bash tests/foundry-pr-watch.test.sh",
+    "bash tests/foundry-pr-report.test.sh",
 ]
 
 [tasks.audit]
