@@ -5,36 +5,49 @@
 # review and CI watch. This script is the sanctioned caller: a PreToolUse hook fires on
 # the agent's OWN tool call (`bash .../foundry-ship-pr`), never on a subprocess, so the
 # `gh pr create` run in here is unhooked - the script, not a forgeable token, is what
-# carries the sanction, and it folds the non-blocking CI watch in so that value cannot be
-# dropped either. ship launches it in the background; it is idempotent and never prompts.
-# Re-running it on a branch that already has a PR pushes any new commits and judges the
-# checks of the commit it pushed.
+# carries the sanction, and it starts the CI watch itself so that step cannot be dropped
+# either. It is idempotent and never prompts. Re-running it on a branch that already has a
+# PR pushes any new commits and watches the checks of the commit it pushed.
 #
-#   Usage: foundry-ship-pr --body-file <path> [--title-file <path>] [--base <branch>] [--repo <owner/repo>]
+# The repo is the current checkout's: the branch is pushed to `origin` and every gh call
+# runs here, so gh resolves the same repo from that remote, from a linked worktree too.
+#
+#   Usage: foundry-ship-pr --body-file <path> [--title-file <path>] [--base <branch>]
 #     Title defaults to HEAD's subject. Body and title come from FILES, never the command
 #     line, so the PR prose can mention `gh pr create` without tripping the guard on the
 #     agent's own invocation.
-#   Exit:  mirrors foundry-pr-report - 0 all passed, 1 a check failed, 2 still pending or
-#          no checks ever registered for the pushed commit; 3 the push was rejected, so
-#          there is no CI run to read.
+#   Watch: returns as soon as the PR is open; foundry-pr-watch --ready-on-green judges the
+#          pushed commit's checks in the background and marks the draft ready on green. It
+#          runs in a sibling Herdr pane when HERDR_ENV=1, else as a detached process logging
+#          to .foundry/pr-watch.log. Either way its output ends with
+#          `---PR-CI-WATCH-DONE--- exit <n>`, n being foundry-pr-watch's exit (0 passed,
+#          1 a check failed, 2 nothing to judge).
+#   Exit:  0 the PR is open and the watch started; 2 a usage error; 3 the push was
+#          rejected, so there is no CI run to watch.
 set -euo pipefail
 
-BASE=""; BODY_FILE=""; TITLE_FILE=""; REPO=()
+BASE=""; BODY_FILE=""; TITLE_FILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --base) BASE="$2"; shift 2 ;;
     --body-file) BODY_FILE="$2"; shift 2 ;;
     --title-file) TITLE_FILE="$2"; shift 2 ;;
-    --repo) REPO=(--repo "$2"); shift 2 ;;
+    # Refused rather than threaded through: the push always goes to `origin`, so a gh-only
+    # override would open or watch a PR on a repo the commit never reached.
+    --repo)
+      echo "foundry-ship-pr: --repo is not supported - the repo comes from the current checkout's" >&2
+      echo "  origin remote (linked worktrees included); run this from that checkout" >&2
+      exit 2 ;;
     *) echo "foundry-ship-pr: unknown arg: $1" >&2; exit 2 ;;
   esac
 done
 [ -n "$BODY_FILE" ] || { echo "foundry-ship-pr: --body-file is required (never interactive)" >&2; exit 2; }
 
 here=$(cd "$(dirname "$0")" && pwd)
+SENTINEL='---PR-CI-WATCH-DONE---'
 
-default_base() { gh repo view "${REPO[@]}" --json defaultBranchRef -q .defaultBranchRef.name; }
-existing_pr()  { gh pr view "${REPO[@]}" --json number -q .number 2>/dev/null; }
+default_base() { gh repo view --json defaultBranchRef -q .defaultBranchRef.name; }
+existing_pr()  { gh pr view --json number -q .number 2> /dev/null; }
 
 create_pr() { # open a draft PR for the pushed branch, echo its number
   local title branch
@@ -42,32 +55,27 @@ create_pr() { # open a draft PR for the pushed branch, echo its number
   branch=$(git rev-parse --abbrev-ref HEAD)
   # --head explicitly: gh otherwise infers it from tracking config and can abort with
   # "you must first push the current branch" even right after a successful push -u.
-  gh pr create "${REPO[@]}" --draft --head "$branch" --base "${BASE:-$(default_base)}" \
+  gh pr create --draft --head "$branch" --base "${BASE:-$(default_base)}" \
     --title "$title" --body-file "$BODY_FILE" > /dev/null
   existing_pr
 }
 
-# Overridable so the test can poll without sleeping.
-POLL_SECONDS="${FOUNDRY_SHIP_PR_POLL_SECONDS:-15}"
+# A sibling pane keeps the watch visible to the user without taking their focus. Returns
+# non-zero when Herdr cannot split, so the caller falls back to a detached process.
+watch_in_herdr_pane() { # <watch command>
+  local split pane
+  split=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus 2> /dev/null) || return 1
+  pane=$(printf '%s' "$split" | sed -n 's/.*"pane_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+  [ -n "$pane" ] || return 1
+  herdr pane run "$pane" "$1" > /dev/null || return 1
+  echo "foundry-ship-pr: CI watch running in Herdr pane $pane; it is done when the pane shows $SENTINEL:"
+  echo "  herdr pane read $pane --source recent-unwrapped --lines 200"
+}
 
-# Poll until the PR's head is the commit just pushed and that commit has checks, or give up
-# (~5m). Right after a push GitHub still reports the previous head and its finished checks,
-# so counting checks alone would watch and report the old commit's run.
-# Returns 0 when checks appear, 1 when the head never reached the commit, 2 when it did
-# but no checks registered.
-wait_for_checks() {
-  local pr="$1" sha="$2" head reached=0 n
-  for _ in $(seq 1 20); do
-    head=$(gh pr view "$pr" "${REPO[@]}" --json headRefOid -q .headRefOid 2> /dev/null || true)
-    if [ "$head" = "$sha" ]; then
-      reached=1
-      n=$(gh pr checks "$pr" "${REPO[@]}" --json name -q 'length' 2> /dev/null || echo 0)
-      [ "${n:-0}" -gt 0 ] && return 0
-    fi
-    sleep "$POLL_SECONDS"
-  done
-  [ "$reached" -eq 1 ] && return 2
-  return 1
+# All three fds are redirected so the caller's tool call is not held open by the child.
+watch_detached() { # <watch command> <log>
+  nohup bash -c "$1" > "$2" 2>&1 < /dev/null &
+  echo "foundry-ship-pr: CI watch running in the background; it is done when $2 ends with $SENTINEL"
 }
 
 # Push on every run, not only when creating: a re-launch after a fix commit must land it.
@@ -78,26 +86,12 @@ fi
 sha=$(git rev-parse HEAD)
 pr=$(existing_pr || true)
 [ -n "$pr" ] || pr=$(create_pr)
-url=$(gh pr view "$pr" "${REPO[@]}" --json url -q .url)
+url=$(gh pr view "$pr" --json url -q .url)
 root=$(git rev-parse --show-toplevel)
 mkdir -p "$root/.foundry" && printf '%s\n' "$url" > "$root/.foundry/pr-url"
 echo "foundry-ship-pr: PR $url"
 
-waited=0
-wait_for_checks "$pr" "$sha" || waited=$?
-if [ "$waited" -eq 1 ]; then
-  echo "foundry-ship-pr: PR head never reached ${sha:0:7} after 5m - check that the PR's head" >&2
-  echo "  branch is the one on origin (a --repo or fork mismatch pushes somewhere else)" >&2
-  exit 2
-elif [ "$waited" -eq 2 ]; then
-  echo "foundry-ship-pr: no checks registered for ${sha:0:7} after 5m - this branch may have no CI, or a" >&2
-  echo "  workflow failed to parse (a 0s run is invisible to gh pr checks; gh run list shows it)" >&2
-  exit 2
-fi
-gh pr checks "$pr" "${REPO[@]}" --watch --interval 30 || true
-
-rc=0
-"$here/foundry-pr-report" "$pr" "${REPO[@]}" || rc=$?
-# CLAUDE.md: a PR opens as a draft and becomes ready only once CI is green.
-[ "$rc" -eq 0 ] && gh pr ready "$pr" "${REPO[@]}" 2> /dev/null || true
-exit "$rc"
+# %q because the plugin path can contain spaces (a Windows profile like C:/Users/John Smith).
+watch_cmd="$(printf '%q' "$here/foundry-pr-watch") $pr --sha $sha --ready-on-green; echo \"$SENTINEL exit \$?\""
+if [ "${HERDR_ENV:-}" = 1 ] && watch_in_herdr_pane "$watch_cmd"; then exit 0; fi
+watch_detached "$watch_cmd" "$root/.foundry/pr-watch.log"
