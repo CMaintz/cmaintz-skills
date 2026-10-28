@@ -78,6 +78,9 @@ for d in $dirs; do
   # so its own directory has to join PATH too, or the sibling lookup dies with
   # "FileNotFoundError: habit-sensors". Only that directory, so the fallback still lands
   # on the pinned version rather than an older install earlier on PATH.
+  # Do NOT collapse these arms: for a bare name resolved from PATH, dirname gives ".",
+  # and this runs inside cd "$d", so the package being checked would join PATH and a
+  # habit-sensors committed to any repo the agent stops in would execute.
   case "$hh" in
     */*) hh_path="$(dirname "$hh"):$PATH" ;;
     *)   hh_path="$PATH" ;;

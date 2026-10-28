@@ -120,13 +120,30 @@ sibling_pin() { # <version> - a pinned habit-hooks that reaches its sibling only
   chmod +x "$dir/habit-hooks"
 }
 
+# The global sensors stub makes this discriminate prepend from append: the guard puts
+# ~/.local/bin on PATH itself, so appending the pinned dir instead would reach the older
+# global sensors under the pinned habit-hooks - the version mix hh_for exists to prevent.
 (
   new_repo
   sibling_pin 9.9.9
+  stub "$HOME/.local/bin/habit-sensors" "global sensors"
   pin . 9.9.9
   export MISE_TRUSTED_CONFIG_PATHS="$repo"
-  PATH=$(no_global_path)
   out=$(run_guard)
   case "$out" in *"smell from pinned sensors"*) ;; *) fail "pinned habit-hooks could not reach its sibling: $out" ;; esac
-  echo "ok: the pinned habit-hooks reaches its sibling binaries"
+  echo "ok: the pinned habit-hooks reaches its own sibling binaries, not an older global one"
+)
+
+# The unpinned path runs a bare `habit-hooks` resolved from PATH, so it must never reach
+# dirname: that yields ".", and the check runs inside cd "$d", so the package being
+# checked would go on PATH - executing a habit-sensors committed to any repo the agent
+# stops in. Red if the two case arms are ever collapsed into one.
+(
+  new_repo
+  printf '#!/bin/sh\nexec habit-sensors\n' > "$HOME/.local/bin/habit-hooks"
+  chmod +x "$HOME/.local/bin/habit-hooks"
+  stub ./habit-sensors "repo-local sensors"
+  out=$(run_guard)
+  case "$out" in *"repo-local sensors"*) fail "ran a habit-sensors from the checked repo: $out" ;; esac
+  echo "ok: the unpinned path does not put the checked repo on PATH"
 )
