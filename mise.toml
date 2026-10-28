@@ -44,6 +44,7 @@ depends = ["setup:mcp-deps"]
 run = [
     "node --test \"plugins/foundry/scripts/**/*.test.mjs\"",
     "bash tests/pre-commit.test.sh",
+    "bash tests/auto-format.test.sh",
     "bash tests/habit-hooks-guard.test.sh",
     "bash tests/foundry-ship-pr.test.sh",
     "bash tests/mcp-deps.test.sh",

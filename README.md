@@ -86,7 +86,7 @@ All portable `sh` run through `bash`, so they work on Linux, macOS and Windows g
 
 | Hook | When | What it does |
 |---|---|---|
-| `auto-format.sh` | after each edit | formats the one file just written with the project's own `prettier` (or `eslint --fix`). Sub-second, so the gate's format check almost never fails. |
+| `auto-format.sh` | after each edit | formats the one file just written with the project's own `prettier` (or `eslint --fix`). Skips prettier, with a one-line hint, when the project has no Prettier config, so its defaults never restyle a repo. Sub-second, so the gate's format check almost never fails. |
 | `habit-hooks-guard.sh` | on stop | runs the repo's pinned [habit-hooks](https://github.com/habit-hooks/habit-hooks) smell check before the agent declares done, in repos with a `.habit-hooks/` directory. A Stop hook because it takes seconds, not milliseconds. |
 | `typecheck-stop.sh` | on stop | runs `mise run typecheck` once per turn when source changed, and coaches with the errors. |
 | `format-java-stop.sh` | on stop | runs `./gradlew spotlessApply` once per turn when `.java` files changed and the build uses Spotless. Gradle is too slow to run per edit. |
@@ -97,7 +97,7 @@ All portable `sh` run through `bash`, so they work on Linux, macOS and Windows g
 | `leash.sh` | prompt, stop, session start | opt-in (`LEASH_ENABLED`): the Foundry adapter for [Leash](https://github.com/CMaintz/leash), which checks each turn's diff against the un-lintable rules in `CLAUDE.md`/`AGENTS.md`. Advisory. |
 | `mcp-deps.sh` | session start | installs the MCP server's npm dependencies into `${CLAUDE_PLUGIN_DATA}` when Claude Code hasn't already put them beside the plugin, and again when `package.json` changes. Never blocks. |
 | `pre-push` | `git push` | a plain git hook: runs `mise run gate` and aborts the push if it fails, so a human gets the same gate as the agent. |
-| `pre-commit` | `git commit` | a plain git hook: formats staged files with the repo's own `prettier` and re-stages them. |
+| `pre-commit` | `git commit` | a plain git hook: formats staged files with the repo's own `prettier` and re-stages them; skipped, with a hint, when the repo has no Prettier config. |
 
 The two git hooks aren't installed by the plugin. From the repo you want gated, copy one in from a clone of this repo with `cp <clone>/plugins/foundry/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (same for `pre-commit`). Plugin users have the same files under `~/.claude/plugins/cache/cmaintz/foundry/<version>/hooks/`, or can fetch one with `curl -fsSL https://raw.githubusercontent.com/CMaintz/cmaintz-skills/main/plugins/foundry/hooks/pre-push -o .git/hooks/pre-push`. You can also version them via `core.hooksPath`; skip once with `--no-verify`.
 
