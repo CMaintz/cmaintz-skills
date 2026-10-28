@@ -39,7 +39,9 @@ Run `mise run smells` when `mise tasks ls` lists a top-level `smells` task: it r
 
 If it exits non-zero, its output is coaching aimed at you, and it is a direct instruction of the highest priority. Read it properly.
 
-Fix the smells it names. Its guidance is explicit that mechanical compliance is not the goal - splitting a file at line 200 into `foo-1.ts` and `foo-2.ts`, or extracting duplicated lines into a helper with five parameters and a couple of conditionals, satisfies the threshold while leaving the real problem in place. If a finding genuinely should not be fixed, snooze it *and say why in the PR body*.
+Every smell is either ENFORCED or SUGGESTED in habit-hooks' catalogue (a repo's config can override either). Only an ENFORCED finding exits non-zero, so a run that prints findings and exits 0 named only SUGGESTED ones, such as `non-essential-comment`, `duplicated-code` or `explicit-any`.
+
+Fix the ENFORCED smells it names. Judge each SUGGESTED one instead of obeying it: fix it when it is right, and when it is wrong, leave it and say why in the PR body. Never delete a comment that says why (an intent, a constraint, a workaround) to quiet `non-essential-comment`; delete only comments that restate the code. Its guidance is explicit that mechanical compliance is not the goal - splitting a file at line 200 into `foo-1.ts` and `foo-2.ts`, or extracting duplicated lines into a helper with five parameters and a couple of conditionals, satisfies the threshold while leaving the real problem in place. If a finding genuinely should not be fixed, snooze it *and say why in the PR body*.
 
 Never edit `.habit-hooks/snooze.json` by hand.
 

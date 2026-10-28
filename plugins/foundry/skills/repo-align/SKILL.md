@@ -140,7 +140,10 @@ rule below applies to each extraction step, not to "clear the whole file."
 3. **Clear smells**: run `mise run <pkg>:smells` (the pinned habit-hooks), or
    `habit-hooks` where the package has no `smells` task; fix the findings *properly*. The goal is
    **cohesion** - each function doing one thing (SRP; lean on SOLID where it's
-   rational, not dogmatically) - not a smaller number.
+   rational, not dogmatically) - not a smaller number. ENFORCED smells get fixed;
+   SUGGESTED ones (`non-essential-comment`, `duplicated-code`, ...) are judged:
+   fix them when right, leave them and say why in the PR when wrong. Never delete
+   a comment that says why to quiet a smell.
    `high-complexity` / `oversized-function` / `too-many-parameters` are *signals* it's
    doing too much - fix by the right seam (a missing abstraction, or a humble
    well-named helper), not by chasing the count. **Don't over-decompose** - a

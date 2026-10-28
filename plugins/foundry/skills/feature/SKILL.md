@@ -87,8 +87,10 @@ Run `mise run smells` when `mise tasks ls` lists a top-level `smells` task: it r
 - **No `.habit-hooks/` anywhere** → skip `habit-hooks` and count it as no smells. Say so once, not every cycle.
 - **`.habit-hooks/` present but `habit-hooks` is not on `PATH`** (or exits with "command not found") → stop with an error and [escalate](#escalation). Step 2's `mise install` already provisioned it, so it is genuinely broken, and a broken install must never pass as clean.
 
-- **Green gate and no smells** → go to step 4.
+- **Green gate and no ENFORCED smells** → go to step 4.
 - **Otherwise** → act on the `habit-hooks` coaching and the failing verb's output, **fix the cause**, and re-run from a clean tree.
+
+Only ENFORCED smells exit non-zero, and those you fix. SUGGESTED ones (findings on a zero exit, such as `non-essential-comment` or `duplicated-code`) are judged, not obeyed: fix them when they are right, leave them and say why in the PR when they are wrong. Never delete a comment that says why to quiet a smell.
 
 **Fix the cause, never the rule.** A green gate reached by disabling a lint rule, lowering a threshold, or growing a suppression baseline is not done - and `ruleset-guard` will block it anyway. Prune baselines only via `mise run fix`.
 
