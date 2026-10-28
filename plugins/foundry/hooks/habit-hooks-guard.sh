@@ -72,7 +72,17 @@ for d in $dirs; do
   # this system exists to avoid. Warn (non-blocking) and move on, so the other packages
   # are still checked and any of them can block the stop.
   hh=$(hh_for "$d") || { printf '%s\n' "$hh" >&2; continue; }
-  out=$(cd "$d" && "$hh" --branch 2>&1); rc=$?
+  # habit-hooks spawns habit-sensors and habit-mapper as siblings, resolving each through
+  # PATH when the next-to-me lookup misses - which it always does on Windows, where pip
+  # names them *.exe and that lookup does not. We run the pinned binary by absolute path,
+  # so its own directory has to join PATH too, or the sibling lookup dies with
+  # "FileNotFoundError: habit-sensors". Only that directory, so the fallback still lands
+  # on the pinned version rather than an older install earlier on PATH.
+  case "$hh" in
+    */*) hh_path="$(dirname "$hh"):$PATH" ;;
+    *)   hh_path="$PATH" ;;
+  esac
+  out=$(cd "$d" && PATH="$hh_path" "$hh" --branch 2>&1); rc=$?
   # A JS package never installed here (fresh clone or worktree): its sensors report
   # eslint/knip/ts-morph as "not installed", which nudges the agent into
   # `npm install --save-dev <tool>`. The deps are declared, just not installed.

@@ -108,3 +108,25 @@ no_global_path() {
   case "$out" in *frontend*) ;; *) fail "frontend skip not reported: $out" ;; esac
   echo "ok: a package without habit-hooks does not mask another's smells"
 )
+
+# habit-hooks reaches habit-sensors/habit-mapper through PATH whenever its next-to-me
+# lookup misses, as it always does on Windows (pip names them *.exe, that lookup does
+# not). The guard runs the pinned binary by absolute path, so its directory has to be on
+# PATH too. A stub that only finds its sibling via PATH stands in for that behaviour.
+sibling_pin() { # <version> - a pinned habit-hooks that reaches its sibling only via PATH
+  local dir="$HOME/.local/opt/habit-hooks-typescript-$1/bin"
+  stub "$dir/habit-sensors" "pinned sensors"
+  printf '#!/bin/sh\nexec habit-sensors\n' > "$dir/habit-hooks"
+  chmod +x "$dir/habit-hooks"
+}
+
+(
+  new_repo
+  sibling_pin 9.9.9
+  pin . 9.9.9
+  export MISE_TRUSTED_CONFIG_PATHS="$repo"
+  PATH=$(no_global_path)
+  out=$(run_guard)
+  case "$out" in *"smell from pinned sensors"*) ;; *) fail "pinned habit-hooks could not reach its sibling: $out" ;; esac
+  echo "ok: the pinned habit-hooks reaches its sibling binaries"
+)
