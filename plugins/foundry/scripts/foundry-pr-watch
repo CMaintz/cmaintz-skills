@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # foundry-pr-watch - block until a PR's checks for the commit just pushed have finished, then
-# print foundry-pr-report's verdict. pr-ci-watch runs it in a background task or a Herdr
-# pane, so the blocking happens off the agent's critical path.
+# print foundry-pr-report's verdict. pr-ci-watch and foundry-ship-pr run it as a hidden
+# background process, so the blocking happens off the agent's critical path.
 #
 #   Usage: foundry-pr-watch [<pr>] [--sha <sha>] [--ready-on-green] [--repo <owner/repo>]
 #     <pr>   PR number or URL; defaults to the PR for the current branch.

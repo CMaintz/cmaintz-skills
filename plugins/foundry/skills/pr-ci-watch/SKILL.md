@@ -1,14 +1,15 @@
 ---
 name: pr-ci-watch
-description: Loop a PR's CI result back to a working agent WITHOUT blocking it. Spawn a Herdr monitor pane that watches the PR's checks while the main agent keeps coding, then read the verdict and, on failure, fix, push and re-watch until green. Use right after you open or push to a PR and want CI watched in the background instead of blocking the whole session on `gh pr checks --watch`; it is the non-blocking form of ship's watch-CI step. Judges the pushed commit's checks with `foundry-pr-watch`, and falls back to a Claude Code background task when not running inside Herdr. Triggers: watch a PR's CI, get CI results without waiting, background or non-blocking CI watch, keep working while checks run.
+description: Loop a PR's CI result back to a working agent WITHOUT blocking it. Run the PR's checks watch as a hidden Claude Code background task while the main agent keeps coding, then read the verdict and, on failure, fix, push and re-watch until green. Use right after you open or push to a PR and want CI watched in the background instead of blocking the whole session on `gh pr checks --watch`; it is the non-blocking form of ship's watch-CI step. Judges the pushed commit's checks with `foundry-pr-watch`. Never opens a Herdr pane. Triggers: watch a PR's CI, get CI results without waiting, background or non-blocking CI watch, keep working while checks run.
 ---
 
 # pr-ci-watch
 
 Get a PR's CI result looped back to you **without blocking the turn**. `gh pr checks
 --watch` is the right signal but it is a wall: run it inline and the agent sits idle for
-the length of the slowest job. This skill puts that watch in a sibling Herdr pane, so the
-main agent keeps working and only comes back to the result when CI has actually finished.
+the length of the slowest job. This skill runs that watch as a hidden background task, so
+the main agent keeps working and only comes back to the result when CI has actually
+finished.
 
 It is the non-blocking form of `ship`'s step 7 ("watch CI, do not assume green"). The
 observe->fix->verify loop is the same; only the waiting is moved off the critical path.
@@ -16,18 +17,15 @@ observe->fix->verify loop is the same; only the waiting is moved off the critica
 turns ready on green) when it opens or updates a PR, so after a ship you only collect that
 verdict. Use this skill for a push that did not go through `foundry-ship-pr`.
 
-Two reusable pieces sit underneath it, and the skill degrades gracefully when either is
-missing:
+**Never open a Herdr pane for a watch**, even inside Herdr: a pane per PR clutters the
+user's workspace, and the user does not want them. The watch is always hidden.
 
-- **`foundry-pr-watch`** (ships with this plugin, at `${CLAUDE_PLUGIN_ROOT}/scripts/`) is
-  the watch core: it waits until the PR's head is the commit you just pushed and that commit
-  has checks, watches them, then runs `foundry-pr-report` for a pass/fail summary plus the
-  failing-step logs. Never watch with a bare `gh pr checks --watch` right after a push:
-  GitHub still shows the previous commit's finished checks for a while, so it returns the
-  old verdict.
-- **Herdr** is the thin non-blocking wrapper. Absent (`HERDR_ENV` unset), the skill falls
-  back to a Claude Code background task, which still gets you the result without blocking,
-  just without a visible pane.
+The watch core is **`foundry-pr-watch`** (ships with this plugin, at
+`${CLAUDE_PLUGIN_ROOT}/scripts/`): it waits until the PR's head is the commit you just
+pushed and that commit has checks, watches them, then runs `foundry-pr-report` for a
+pass/fail summary plus the failing-step logs. Never watch with a bare `gh pr checks
+--watch` right after a push: GitHub still shows the previous commit's finished checks for a
+while, so it returns the old verdict.
 
 ## Resolve the PR
 
@@ -39,17 +37,7 @@ pr="${1:-$(gh pr view --json number -q .number)}"
 
 If there is no PR for the branch, say so and stop. There is nothing to watch.
 
-## Guard: are you inside Herdr?
-
-```bash
-test "${HERDR_ENV:-}" = 1
-```
-
-- **Not inside Herdr** (the test is false): take the fallback path below. Say plainly that
-  the live monitor-pane path needs Herdr and that you are using a background task instead.
-- **Inside Herdr**: take the monitor-pane path.
-
-## Fallback path (no Herdr): a background task
+## Run the watch as a background task
 
 Run the watch as a **Claude Code background command** (the Bash tool with
 `run_in_background: true`). A background command re-invokes the session when it exits, so
@@ -66,98 +54,23 @@ another commit):
 
 When it returns, its exit code is the verdict: 0 green, 1 a check failed (the failing logs
 are in its output), 2 nothing to judge (it says why: the head never reached your commit, or
-no checks registered). On 1, fix the cause in the working tree, commit, push, and start a
-fresh background watch. Repeat until it exits 0.
+no checks registered).
 
-## Monitor-pane path (inside Herdr)
-
-### 1. Build the watch command
-
-An end sentinel carrying the exit code is appended so completion and the verdict are
-detectable by reading the pane (see step 4). `%q` quotes the plugin path, which can contain
-spaces (a Windows profile like `C:/Users/John Smith`).
-
-```bash
-watch=$(printf '%q' "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-pr-watch")
-watch_cmd="$watch $pr; echo \"---PR-CI-WATCH-DONE--- exit \$?\""
-```
-
-### 2. Spawn a non-blocking sibling pane
-
-Split to the right, keep the user's focus (`--no-focus`), and read the new pane id out of
-the JSON result. Do not guess the id.
-
-```bash
-split=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus)
-pane=$(printf '%s' "$split" | jq -r '.result.pane.pane_id')
-```
-
-### 3. Start the watch in that pane
-
-`herdr pane run` sends the command and Enter atomically, then returns immediately. The main
-pane is never blocked.
-
-```bash
-herdr pane run "$pane" "$watch_cmd"
-```
-
-Confirm the watch actually started, then move on. `pane run` occasionally mangles a sent
-command (a stray bracketed-paste marker, a `command not found`). Read the first few lines
-once; if the echoed command looks corrupted, close this pane and re-spawn from step 2.
-Otherwise the completion signal below would never arrive and you would poll forever.
-
-```bash
-herdr pane read "$pane" --source recent-unwrapped --lines 20
-```
-
-### 4. Keep working, then collect the result
-
-Go back to your actual task. Do **not** block on the pane. Check on it occasionally between
-other steps, never in a tight wait:
-
-```bash
-herdr pane process-info --pane "$pane"
-herdr pane read "$pane" --source recent-unwrapped --lines 200
-```
-
-Completion signal: the watch is finished once the pane output contains the
-`---PR-CI-WATCH-DONE---` sentinel. Treat that sentinel as authoritative, because on some
-platforms (Windows git-bash) `process-info` reports only the shell as the foreground
-process even while the watch runs; use `process-info` as a secondary hint on Linux and
-macOS, where the live `gh` process does show up.
-
-Read the verdict from the sentinel's exit code, with the same meaning as in the fallback
-path (0 green, 1 failed, 2 nothing to judge), and the report lines above it.
-
-### 5. On failure: fix, push, re-watch
+## On failure: fix, push, re-watch
 
 If CI failed:
 
-1. Get the failing logs. They are already in the pane, from `foundry-pr-report`.
-2. Fix the real cause in the main pane. Never weaken a rule to pass a check.
+1. Get the failing logs from the watch's output (`foundry-pr-report` prints them).
+2. Fix the real cause. Never weaken a rule to pass a check.
 3. Commit and push.
-4. Spawn a **fresh** monitor pane (back to step 2) for the new run.
+4. Start a fresh background watch for the new run.
 
 Repeat until the checks are green.
 
-### 6. Clean up
-
-Close the monitor pane once CI is green and you are done with it:
-
-```bash
-herdr pane close "$pane"
-```
-
-Only ever close a pane **you** created (the `$pane` from step 2). Never close
-`$HERDR_PANE_ID`, which is the caller's own pane.
-
 ## Notes
 
-- `$HERDR_PANE_ID` is the caller's pane; the id you spawn in step 2 is a different pane,
-  and it is the only one this skill may close.
 - A green local gate is necessary but not sufficient, which is the whole reason to watch
   CI: CI runs jobs the six-verb gate does not (smells-vs-baseline, secret scan, SAST,
   dependency review). This skill is how you close that gap without blocking.
 - The watch and verdict live in `foundry-pr-watch` and `foundry-pr-report`, not in bespoke
-  parsing here, so the pass/fail logic stays in reusable Foundry primitives and Herdr stays
-  a thin wrapper.
+  parsing here, so the pass/fail logic stays in reusable Foundry primitives.
