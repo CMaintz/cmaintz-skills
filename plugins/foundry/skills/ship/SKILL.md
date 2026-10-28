@@ -62,6 +62,8 @@ Your own belief that you fixed something is not evidence. The exit code is the e
 
 ### 4. Review - in a fresh context
 
+First read the full diff yourself, committed and uncommitted (`git diff $(git merge-base <default> HEAD)`, plus `git status --short` for untracked files): it should hold this change and nothing else. Remove unrelated edits, debug leftovers, and stray files, and hold every comment you added to "why, not what" (no history or session context in comments, no commented-out code, no `TODO` without an issue link). If this changed anything, re-run step 3.
+
 Find the linked issue if there is one (`gh issue view <n>`, or a reference in the branch name or commits).
 
 The review **must run in a context that never saw the code being written**. This is not ceremony: an agent reviewing its own work reviews its *intent* rather than its *diff*, and will confidently miss what it meant to do but didn't. A fresh context has no intent to be loyal to.
@@ -74,11 +76,11 @@ Invoke **`foundry:review`**. It runs three lenses (correctness, standards, spec)
 
 ### 5. Commit
 
-Conventional commits. A body that says **why**, not what - the diff already says what. Note any deliberate snooze from step 2 and its justification.
+Conventional commits: an imperative subject of 72 chars max saying what changed, and a body that says **why**, not what - the diff already says what. Skip the body when the why is obvious. Footer `Closes #<n>`, plus `BREAKING CHANGE:` when it applies. Note any deliberate snooze from step 2 and its justification.
 
 ### 6. Open the PR and watch CI - in one non-blocking step
 
-Write the PR body to a file first: what changed, why, anything a reviewer should look at, and any baseline movement. It goes in a **file**, never on the command line, because the `guard-pr-create.sh` hook denies a raw `gh pr create` (so no agent skips steps 1-5) and prose that mentions `gh pr create` would otherwise trip it.
+Write the PR body to a file first, and keep it short: the problem and why, a few bullets on approach, what a reviewer should look at closely, anything deliberately left out (including `TODO`s), any baseline movement, the reason for any snooze from step 2, and the `verify` table from step 4. No file lists, no testing essays. It goes in a **file**, never on the command line, because the `guard-pr-create.sh` hook denies a raw `gh pr create` (so no agent skips steps 1-5) and prose that mentions `gh pr create` would otherwise trip it.
 
 The sanctioned path is **`foundry-ship-pr`**: it pushes the branch, opens a draft PR, then starts the `pr-ci-watch` watcher (`foundry-pr-watch --ready-on-green`) in the background, which marks the PR ready once green. It runs `gh pr create` as a subprocess, which the hook never sees, so it is the one way through. Run it from the worktree whose branch you are shipping, as an ordinary (foreground) Bash call: it returns as soon as the PR is open, because the watch is already off the critical path. There is no `--repo`: the repo is the one the checkout's `origin` points at, linked worktrees included.
 
@@ -101,6 +103,8 @@ until grep -q -- '---PR-CI-WATCH-DONE---' .foundry/pr-watch.log; do sleep 15; do
 ```
 
 On failure, take the failing-step logs above the sentinel and run the observe->fix->verify loop: fix the real cause, commit, and re-run `foundry-ship-pr` (idempotent - it pushes the new commit, finds the existing PR and starts a fresh watch of that commit's checks). Genuinely baseline-only bot PRs are the only ones that legitimately skip the watch.
+
+When review comments arrive, answer every thread: fix it and reply with the commit, or explain why not. Leave resolving to the reviewer.
 
 ### 8. Clean up the worktree once merged
 

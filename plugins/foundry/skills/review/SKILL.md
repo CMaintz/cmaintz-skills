@@ -36,9 +36,13 @@ lenses, then the refuter), three at `high`: cheap next to a missed bug.
 
 | Effort | Reports |
 |---|---|
-| low | blockers only - correctness bugs, spec violations. Terse. |
-| medium | blockers + should-fix (design smells, missing tests), including any the refuter could not settle, marked unverified |
-| high | the above + nits and suggestions; may surface uncertain findings for a human to judge. Adds the **Red-team** lens. |
+| low | `blocking:` only - correctness bugs, spec violations. Terse. |
+| medium | `blocking:` + `suggestion:` (design smells, missing tests, misleading comments), including any the refuter could not settle, marked unverified |
+| high | the above + `nit:`, plus `question:` for uncertain findings a human should judge. Adds the **Red-team** lens. |
+
+A refuter-`unsure` finding keeps its own label, marked unverified. The Spec
+lens's codemap `question:` findings are the one exception to the thresholds:
+they are reported at every effort (see step 4).
 
 State the chosen breadth and effort at the top of the report.
 
@@ -83,7 +87,9 @@ however small the diff.
      resource leaks, off-by-ones, broken invariants.
    - **Standards** - the repo's own conventions: naming, module boundaries, the
      structural-smell vocabulary, plus any `build-project-review` criteria. Not
-     generic style a linter already covers.
+     generic style a linter already covers. Includes comment quality: comments
+     say why, not what; history, session context, commented-out code, stale
+     comments, and issue-less `TODO`s are findings.
    - **Spec** - does the diff do what the issue asked? Missing requirements, and
      scope creep (things done that nobody asked for). Check it against the
      acceptance criteria and the Definition of Done, and name each DoD item the
@@ -129,10 +135,16 @@ however small the diff.
    questions rather than claims.
 
 6. **Report**, grouped by lens, most severe first, each as
-   `file:line - what - why`. State the breadth and effort used. Say explicitly
+   `label: file:line - what - why`, where the label is the severity from the
+   effort table and a correctness finding's why is a concrete failure scenario.
+   One issue per finding. State the breadth and effort used. Say explicitly
    when a lens found nothing - silence is a result, not an omission. Give the
    count of findings the refute step dropped, so a short report is visibly
    filtered rather than thin.
+
+   When posting findings to a PR, use the same shape: one inline comment per
+   finding, a suggestion block for small fixes, and no summary of the PR back to
+   its author.
 
 ## Rules
 
