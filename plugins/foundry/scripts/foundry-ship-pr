@@ -18,8 +18,8 @@
 #     agent's own invocation.
 #   Watch: returns as soon as the PR is open; foundry-pr-watch --ready-on-green judges the
 #          pushed commit's checks in the background and marks the draft ready on green. It
-#          runs in a sibling Herdr pane when HERDR_ENV=1, else as a detached process logging
-#          to .foundry/pr-watch.log. Either way its output ends with
+#          always runs as a hidden detached process logging to .foundry/pr-watch.log, never
+#          in a Herdr pane, even inside Herdr. The log ends with
 #          `---PR-CI-WATCH-DONE--- exit <n>`, n being foundry-pr-watch's exit (0 passed,
 #          1 a check failed, 2 nothing to judge).
 #   Exit:  0 the PR is open and the watch started; 2 a usage error; 3 the push was
@@ -60,18 +60,6 @@ create_pr() { # open a draft PR for the pushed branch, echo its number
   existing_pr
 }
 
-# A sibling pane keeps the watch visible to the user without taking their focus. Returns
-# non-zero when Herdr cannot split, so the caller falls back to a detached process.
-watch_in_herdr_pane() { # <watch command>
-  local split pane
-  split=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus 2> /dev/null) || return 1
-  pane=$(printf '%s' "$split" | sed -n 's/.*"pane_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
-  [ -n "$pane" ] || return 1
-  herdr pane run "$pane" "$1" > /dev/null || return 1
-  echo "foundry-ship-pr: CI watch running in Herdr pane $pane; it is done when the pane shows $SENTINEL:"
-  echo "  herdr pane read $pane --source recent-unwrapped --lines 200"
-}
-
 # All three fds are redirected so the caller's tool call is not held open by the child.
 watch_detached() { # <watch command> <log>
   nohup bash -c "$1" > "$2" 2>&1 < /dev/null &
@@ -93,5 +81,4 @@ echo "foundry-ship-pr: PR $url"
 
 # %q because the plugin path can contain spaces (a Windows profile like C:/Users/John Smith).
 watch_cmd="$(printf '%q' "$here/foundry-pr-watch") $pr --sha $sha --ready-on-green; echo \"$SENTINEL exit \$?\""
-if [ "${HERDR_ENV:-}" = 1 ] && watch_in_herdr_pane "$watch_cmd"; then exit 0; fi
 watch_detached "$watch_cmd" "$root/.foundry/pr-watch.log"

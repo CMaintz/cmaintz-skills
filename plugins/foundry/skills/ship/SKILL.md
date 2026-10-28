@@ -88,7 +88,7 @@ The sanctioned path is **`foundry-ship-pr`**: it pushes the branch, opens a draf
 "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-ship-pr" --body-file <file> [--title-file <file>] [--base <branch>]
 ```
 
-It prints the PR URL (also written to `.foundry/pr-url`) and where the watch runs: a sibling Herdr pane when `HERDR_ENV=1`, else a detached process logging to `.foundry/pr-watch.log`. Exit 0 means the PR is open and the watch started; 3 means the push itself was rejected, so rebase or fix the branch rather than looking for CI logs.
+It prints the PR URL (also written to `.foundry/pr-url`) and that the watch is running as a hidden detached process logging to `.foundry/pr-watch.log` (never a Herdr pane, even inside Herdr). Exit 0 means the PR is open and the watch started; 3 means the push itself was rejected, so rebase or fix the branch rather than looking for CI logs.
 
 If the change **loosens** the gate alongside source (grows a suppression baseline, lowers a threshold, edits a lint rule) the PR needs the `ruleset-change` label or `ruleset-guard` will fail it. Tightening does not: a baseline that only shrank because `mise run fix` pruned it ships with the source fix, no label needed. That is the rule working - do not route around it by splitting the commit dishonestly.
 
@@ -96,7 +96,7 @@ If the change **loosens** the gate alongside source (grows a suppression baselin
 
 A green local `gate` is necessary, not sufficient. CI runs checks your six-verb gate does **not**: the smells-vs-baseline job, secret scan, SAST (semgrep/CodeQL), dependency review. So when the watch finishes, you **must act on its result** - "I pushed, so it's green" is exactly how a red PR gets left behind.
 
-Collect the verdict the way **`foundry:pr-ci-watch`** does: keep working, and check between other steps for the `---PR-CI-WATCH-DONE--- exit <n>` line (0 passed and the PR is now ready, 1 a check failed, 2 nothing to judge). In Herdr, read the pane the script named (`herdr pane read <pane> --source recent-unwrapped --lines 200`) and close it once you are done with it. Outside Herdr, have the session woken when it lands by starting a background Bash task (`run_in_background: true`, generous timeout) that waits on the log:
+Collect the verdict the way **`foundry:pr-ci-watch`** does: keep working, and check between other steps for the `---PR-CI-WATCH-DONE--- exit <n>` line (0 passed and the PR is now ready, 1 a check failed, 2 nothing to judge). Have the session woken when it lands by starting a background Bash task (`run_in_background: true`, generous timeout) that waits on the log:
 
 ```bash
 until grep -q -- '---PR-CI-WATCH-DONE---' .foundry/pr-watch.log; do sleep 15; done; cat .foundry/pr-watch.log
