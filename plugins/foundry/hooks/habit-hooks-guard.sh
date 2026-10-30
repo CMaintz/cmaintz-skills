@@ -26,9 +26,16 @@ done
 export PATH
 
 # Package dirs with a .habit-hooks/: the root, plus one level down (backend/, frontend/).
+# Only packages of the session's own repo: a session in a folder of repos (~/Projects)
+# would otherwise check every sibling's changeset, including half-made ones of other
+# sessions where the base ref doesn't resolve yet.
+top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 dirs=""
 [ -d .habit-hooks ] && dirs="."
-for d in */; do [ -d "${d}.habit-hooks" ] && dirs="$dirs ${d%/}"; done
+for d in */; do
+  [ -d "${d}.habit-hooks" ] && [ "$(git -C "$d" rev-parse --show-toplevel 2>/dev/null)" = "$top" ] &&
+    dirs="$dirs ${d%/}"
+done
 [ -n "$dirs" ] || exit 0   # nothing opted in here - silent, safe to install globally
 
 # Claude Code's EnterWorktree puts full repo copies under .claude/worktrees/. Unignored,

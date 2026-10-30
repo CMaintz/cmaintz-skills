@@ -109,6 +109,19 @@ no_global_path() {
   echo "ok: a package without habit-hooks does not mask another's smells"
 )
 
+# A session in a folder of repos (~/Projects) is in none of them, so their changesets
+# aren't its work. Checking them blocked the stop on another session's half-made repo.
+(
+  new_repo
+  parent=$(mktemp -d)
+  mv "$repo" "$parent/sibling"
+  repo=$parent
+  cd "$repo"
+  out=$(run_guard)
+  case "$out" in *"smell from"*) fail "checked a repo the session is not in: $out" ;; esac
+  echo "ok: a sibling repo under the session folder is not checked"
+)
+
 # habit-hooks reaches habit-sensors/habit-mapper through PATH whenever its next-to-me
 # lookup misses, as it always does on Windows (pip names them *.exe, that lookup does
 # not). The guard runs the pinned binary by absolute path, so its directory has to be on
