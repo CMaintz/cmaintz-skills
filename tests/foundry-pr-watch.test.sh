@@ -73,7 +73,7 @@ watch() {
   echo "ok: reports a PR head that never reaches the pushed commit"
 )
 
-# --ready-on-green is how foundry-ship-pr's draft becomes ready: only a green verdict flips it.
+# --ready-on-green flips a deliberately-draft PR to ready, but only on a green verdict.
 (
   setup 0 1 pass; watch --ready-on-green
   [ "$rc" -eq 0 ] || fail "expected a green verdict, got exit $rc: $(cat "$work/out.log")"

@@ -103,10 +103,10 @@ who reads it.
 - **Governance labels** `ruleset-change` and `suppression` - a human's sign-off; an agent
   Bash call that applies, aliases or (re)defines either is denied by
   `plugins/foundry/hooks/guard-governance-labels.sh`.
-- **PR draft/ready state** - `foundry-ship-pr` opens PRs as drafts
-  (`plugins/foundry/scripts/foundry-ship-pr#create_pr`) and `foundry-pr-watch
-  --ready-on-green` marks one ready when the verdict is green
-  (`plugins/foundry/scripts/foundry-pr-watch`).
+- **PR draft/ready state** - `foundry-ship-pr` opens PRs ready for review
+  (`plugins/foundry/scripts/foundry-ship-pr#create_pr`) and marks a reused draft ready
+  (`plugins/foundry/scripts/foundry-ship-pr`); `foundry-pr-watch --ready-on-green` marks a
+  deliberate draft ready when the verdict is green (`plugins/foundry/scripts/foundry-pr-watch`).
 
 ## Docs and hook payload formats
 

@@ -6,8 +6,8 @@
 #   Usage: foundry-pr-watch [<pr>] [--sha <sha>] [--ready-on-green] [--repo <owner/repo>]
 #     <pr>   PR number or URL; defaults to the PR for the current branch.
 #     --sha  the commit whose checks to judge; defaults to HEAD, the commit just pushed.
-#     --ready-on-green  mark the draft PR ready once the verdict is green. foundry-ship-pr
-#            passes it, because a PR opens as a draft and becomes ready only once CI is green.
+#     --ready-on-green  mark the PR ready once the verdict is green, for a PR opened as a
+#            draft on purpose. foundry-ship-pr opens PRs ready, so it does not pass it.
 #   Exit:  mirrors foundry-pr-report - 0 all passed, 1 a check failed, 2 still pending, the
 #          PR head never reached <sha>, or no checks registered for it.
 set -euo pipefail

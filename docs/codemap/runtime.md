@@ -51,7 +51,7 @@ hooks, skills, scripts and a stdio MCP server inside a user's session.
 
 ## Executables shipped in the plugin
 
-- `plugins/foundry/scripts/foundry-ship-pr` (bash): push, open draft PR, start CI watch;
+- `plugins/foundry/scripts/foundry-ship-pr` (bash): push, open PR ready for review, start CI watch;
   exits 0, 2 on usage error, 3 on rejected push.
 - `plugins/foundry/scripts/foundry-pr-watch` (bash): wait for the pushed SHA's checks,
   report, optionally mark ready; exits 0, 1 or 2.

@@ -20,7 +20,7 @@ format contract (`plugins/foundry/skills/codemap/FORMAT.md`).
   an isolated worktree, loops `mise run fix` / `smells` / `gate` until green, runs `verify`, then
   hands to `ship` (`plugins/foundry/skills/feature/SKILL.md`).
 - `ship`: takes a finished change through fix, smells, gate, `review` and `verify`, a
-  conventional commit, then opens a draft PR and starts a CI watch via `foundry-ship-pr`
+  conventional commit, then opens a PR ready for review and starts a CI watch via `foundry-ship-pr`
   (`plugins/foundry/skills/ship/SKILL.md`, `plugins/foundry/scripts/foundry-ship-pr`).
 - `review`: advisory review in fresh sub-agents across correctness, standards and spec lenses
   (plus red-team at `high`), scaled by diff size and effort, with a refuter pass before
@@ -61,10 +61,9 @@ format contract (`plugins/foundry/skills/codemap/FORMAT.md`).
   Foundry-made, unlocked, merged, pushed and clean (`plugins/foundry/skills/ship/SKILL.md`).
 - Escalation comments carrying the stuck state on the issue thread
   (`plugins/foundry/skills/feature/SKILL.md`).
-- Draft PRs, plus `.foundry/pr-url` and `.foundry/pr-watch.log`, written by `foundry-ship-pr`
-  (`plugins/foundry/scripts/foundry-ship-pr#create_pr`,
-  `plugins/foundry/scripts/foundry-ship-pr#watch_detached`); the watch marks the PR ready on
-  green (`plugins/foundry/scripts/foundry-pr-watch`).
+- PRs opened ready for review, plus `.foundry/pr-url` and `.foundry/pr-watch.log`, written by
+  `foundry-ship-pr` (`plugins/foundry/scripts/foundry-ship-pr#create_pr`,
+  `plugins/foundry/scripts/foundry-ship-pr#watch_detached`).
 - Herdr monitor panes spawned by `pr-ci-watch`, which closes only the pane it created
   (`plugins/foundry/skills/pr-ci-watch/SKILL.md`).
 - `docs/codemap/` files (INDEX, one per domain slice, three lenses), written only after
@@ -109,9 +108,9 @@ format contract (`plugins/foundry/skills/codemap/FORMAT.md`).
    full diff, invokes `review` and (unless already passed on this HEAD) `verify`, and writes a
    conventional commit with `Closes #<n>` (`plugins/foundry/skills/ship/SKILL.md`).
 8. `ship` runs `foundry-ship-pr --body-file <file>`, which pushes with `git push -u origin HEAD`
-   (exit 3 on rejection), opens or finds a draft PR, writes `.foundry/pr-url`, and starts
-   `foundry-pr-watch --sha <sha> --ready-on-green` in a Herdr pane when `HERDR_ENV=1`, else
-   detached to `.foundry/pr-watch.log` (`plugins/foundry/skills/ship/SKILL.md`,
+   (exit 3 on rejection), opens or finds the PR (marking a draft ready), writes
+   `.foundry/pr-url`, and starts `foundry-pr-watch --sha <sha>` in a Herdr pane when
+   `HERDR_ENV=1`, else detached to `.foundry/pr-watch.log` (`plugins/foundry/skills/ship/SKILL.md`,
    `plugins/foundry/scripts/foundry-ship-pr#create_pr`,
    `plugins/foundry/scripts/foundry-ship-pr#watch_in_herdr_pane`).
 9. Side effects: the watch waits for the pushed commit's checks, prints `foundry-pr-report`'s

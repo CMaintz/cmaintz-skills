@@ -32,7 +32,8 @@ inbound surfaces are Claude Code itself, which invokes the hooks with JSON on st
 ## GitHub, via the `gh` CLI
 
 - **PR creation and push** - `git push -u origin HEAD`, then `gh pr view`, `gh repo view`
-  (default branch) and `gh pr create --draft --head --base --title --body-file`
+  (default branch), `gh pr create --head --base --title --body-file` and `gh pr ready` for a
+  reused draft
   (`plugins/foundry/scripts/foundry-ship-pr#create_pr`,
   `plugins/foundry/scripts/foundry-ship-pr#default_base`,
   `plugins/foundry/scripts/foundry-ship-pr#existing_pr`). `--repo` is refused; the repo
