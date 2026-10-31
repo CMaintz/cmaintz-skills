@@ -13,8 +13,9 @@ SCRIPT="$(cd "$(dirname "$0")/.." && pwd)/plugins/foundry/scripts/foundry-ship-p
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 # A branch whose PR head is commit one, with commit two made locally and not yet pushed.
-# HAS_PR=0 models a branch with no PR yet, so the run takes the create path.
-setup() { # <lag> <bucket of the pushed head's check> [has_pr]
+# HAS_PR=0 models a branch with no PR yet, so the run takes the create path; a draft of 1
+# makes the existing PR a draft.
+setup() { # <lag> <bucket of the pushed head's check> [has_pr] [draft]
   work="$(mktemp -d)"
   export STATE="$work/state" REMOTE="$work/remote.git" BRANCH=feat/x LAG="$1" NEW_BUCKET="$2"
   export HAS_PR="${3:-1}" WATCH_SLEEP=0
@@ -30,6 +31,7 @@ setup() { # <lag> <bucket of the pushed head's check> [has_pr]
   git rev-parse HEAD > "$STATE/old_sha"
   git commit -q --allow-empty -m two
   [ "$HAS_PR" = 1 ] && touch "$STATE/created"
+  [ "${4:-0}" = 1 ] && touch "$STATE/draft"
 
   cat > "$work/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -46,8 +48,9 @@ case "$*" in
   "repo view --repo"*|"pr view --repo"*) echo "unknown flag: --repo" >&2; exit 1 ;;
   "repo view --json defaultBranchRef"*) echo main ;;
   "pr view --json number"*) [ -e "$STATE/created" ] && echo 37 || exit 1 ;;
-  "pr create "*) touch "$STATE/created" ;;
+  "pr create "*) touch "$STATE/created"; case "$*" in *--draft*) touch "$STATE/draft" ;; esac ;;
   "pr view 37 --json url"*) echo https://example.test/pr/37 ;;
+  "pr view 37 --json isDraft"*) [ -e "$STATE/draft" ] && echo true || echo false ;;
   *headRefOid*) echo $((asked + 1)) > "$STATE/head_asked"; echo "$head" ;;
   "pr checks 37 --watch"*) sleep "$WATCH_SLEEP" ;;
   *'select(.bucket=="fail"'*length*) [ "$bucket" = fail ] && echo 1 || echo 0 ;;
@@ -56,7 +59,7 @@ case "$*" in
   *'\(.bucket)'*) printf '%s\tgate\n' "$bucket" ;;
   "pr checks 37 --json name -q length") echo 1 ;;
   "run view"*) echo "step failed" ;;
-  "pr ready 37"*) touch "$STATE/ready" ;;
+  "pr ready 37"*) touch "$STATE/ready"; rm -f "$STATE/draft" ;;
   *) echo "stub gh: unexpected call: $*" >&2; exit 9 ;;
 esac
 EOF
@@ -94,7 +97,6 @@ watch_verdict() { # <log>
     || fail "the new commit was not pushed to the existing PR's branch: $(cat "$work/out.log")"
   watch_verdict "$work/repo/.foundry/pr-watch.log"
   [ "$verdict" -eq 1 ] || fail "expected the new commit's failing check (exit 1), got $verdict"
-  [ ! -e "$STATE/ready" ] || fail "marked the PR ready on a stale green"
   echo "ok: pushes to an existing PR and judges the pushed commit's checks"
 )
 
@@ -107,17 +109,25 @@ watch_verdict() { # <log>
   echo "ok: returns without waiting for CI"
 )
 
-# Green CI flips the draft to ready from the background watch, after the script has exited.
+# A new PR opens ready for review, so CI runs on a real PR from the start.
 (
-  setup 0 pass; ship
+  setup 0 fail 0; ship
   [ "$rc" -eq 0 ] || fail "expected exit 0, got $rc: $(cat "$work/out.log")"
-  watch_verdict "$work/repo/.foundry/pr-watch.log"
-  [ "$verdict" -eq 0 ] || fail "expected a green verdict, got $verdict: $(cat "$work/repo/.foundry/pr-watch.log")"
-  [ -e "$STATE/ready" ] || fail "green CI did not mark the PR ready"
-  echo "ok: the background watch marks the PR ready on green"
+  grep -q 'pr create ' "$STATE/calls" || fail "no PR was created: $(cat "$STATE/calls")"
+  [ ! -e "$STATE/draft" ] || fail "opened the PR as a draft: $(grep 'pr create ' "$STATE/calls")"
+  echo "ok: opens a new PR ready for review"
 )
 
-# Inside Herdr the watch goes to a sibling pane, and the PR is still marked ready on green.
+# A branch whose PR is still a draft from the old flow is marked ready when it is reused,
+# whatever its CI says.
+(
+  setup 0 fail 1 1; ship
+  [ "$rc" -eq 0 ] || fail "expected exit 0, got $rc: $(cat "$work/out.log")"
+  [ ! -e "$STATE/draft" ] || fail "left the reused PR as a draft: $(cat "$work/out.log")"
+  echo "ok: marks a reused draft PR ready"
+)
+
+# Inside Herdr the watch goes to a sibling pane.
 (
   setup 0 pass
   cat > "$work/bin/herdr" <<'EOF'
@@ -135,8 +145,7 @@ EOF
   grep -q '^pane run p9 ' "$STATE/herdr" || fail "did not run the watch in the new pane: $(cat "$STATE/herdr")"
   watch_verdict "$STATE/pane.log"
   [ "$verdict" -eq 0 ] || fail "expected a green verdict in the pane, got $verdict: $(cat "$STATE/pane.log")"
-  [ -e "$STATE/ready" ] || fail "green CI in the pane did not mark the PR ready"
-  echo "ok: inside Herdr the watch runs in a sibling pane and marks ready on green"
+  echo "ok: inside Herdr the watch runs in a sibling pane"
 )
 
 # From a linked worktree the PR is opened for that worktree's branch and checkout, with no

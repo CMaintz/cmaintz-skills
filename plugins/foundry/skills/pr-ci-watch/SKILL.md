@@ -12,8 +12,8 @@ main agent keeps working and only comes back to the result when CI has actually 
 
 It is the non-blocking form of `ship`'s step 7 ("watch CI, do not assume green"). The
 observe->fix->verify loop is the same; only the waiting is moved off the critical path.
-`foundry-ship-pr` already starts this same watch (with `--ready-on-green`, so its draft PR
-turns ready on green) when it opens or updates a PR, so after a ship you only collect that
+`foundry-ship-pr` already starts this same watch when it opens or updates a PR, so after a
+ship you only collect that
 verdict. Use this skill for a push that did not go through `foundry-ship-pr`.
 
 Two reusable pieces sit underneath it, and the skill degrades gracefully when either is

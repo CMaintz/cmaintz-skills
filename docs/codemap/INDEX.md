@@ -30,7 +30,7 @@ systems), [runtime.md](runtime.md) (install and load, env vars, mise tasks, CI, 
 skills -> scripts. Detail in [skills.md](skills.md).
 1. `plugins/foundry/skills/spec/SKILL.md` files a ticket, which `plugins/foundry/skills/feature/SKILL.md` claims and drives to a green gate in a worktree, checked against its criteria by `plugins/foundry/skills/verify/SKILL.md`.
 2. `plugins/foundry/skills/ship/SKILL.md` re-runs the gate, invokes `plugins/foundry/skills/review/SKILL.md`, commits, and runs `plugins/foundry/scripts/foundry-ship-pr`.
-3. `plugins/foundry/scripts/foundry-ship-pr#create_pr` opens a draft PR and `plugins/foundry/scripts/foundry-ship-pr#watch_detached` (or `plugins/foundry/scripts/foundry-ship-pr#watch_in_herdr_pane`) starts `plugins/foundry/scripts/foundry-pr-watch`, which waits for the pushed commit's checks (`plugins/foundry/scripts/foundry-pr-watch#wait_for_checks`), prints `plugins/foundry/scripts/foundry-pr-report` and marks the PR ready on green.
+3. `plugins/foundry/scripts/foundry-ship-pr#create_pr` opens a PR ready for review and `plugins/foundry/scripts/foundry-ship-pr#watch_detached` (or `plugins/foundry/scripts/foundry-ship-pr#watch_in_herdr_pane`) starts `plugins/foundry/scripts/foundry-pr-watch`, which waits for the pushed commit's checks (`plugins/foundry/scripts/foundry-pr-watch#wait_for_checks`) and prints `plugins/foundry/scripts/foundry-pr-report`.
 
 ### A raw PR create is redirected to ship
 hooks -> scripts. Detail in [hooks.md](hooks.md).

@@ -82,7 +82,7 @@ Conventional commits: an imperative subject of 72 chars max saying what changed,
 
 Write the PR body to a file first, and keep it short: the problem and why, a few bullets on approach, what a reviewer should look at closely, anything deliberately left out (including `TODO`s), any baseline movement, the reason for any snooze from step 2, and the `verify` table from step 4. No file lists, no testing essays. It goes in a **file**, never on the command line, because the `guard-pr-create.sh` hook denies a raw `gh pr create` (so no agent skips steps 1-5) and prose that mentions `gh pr create` would otherwise trip it.
 
-The sanctioned path is **`foundry-ship-pr`**: it pushes the branch, opens a draft PR, then starts the `pr-ci-watch` watcher (`foundry-pr-watch --ready-on-green`) in the background, which marks the PR ready once green. It runs `gh pr create` as a subprocess, which the hook never sees, so it is the one way through. Run it from the worktree whose branch you are shipping, as an ordinary (foreground) Bash call: it returns as soon as the PR is open, because the watch is already off the critical path. There is no `--repo`: the repo is the one the checkout's `origin` points at, linked worktrees included.
+The sanctioned path is **`foundry-ship-pr`**: it pushes the branch, opens the PR ready for review (never a draft, and a reused draft is marked ready), then starts the `pr-ci-watch` watcher (`foundry-pr-watch`) in the background. It runs `gh pr create` as a subprocess, which the hook never sees, so it is the one way through. Run it from the worktree whose branch you are shipping, as an ordinary (foreground) Bash call: it returns as soon as the PR is open, because the watch is already off the critical path. There is no `--repo`: the repo is the one the checkout's `origin` points at, linked worktrees included.
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/foundry-ship-pr" --body-file <file> [--title-file <file>] [--base <branch>]
@@ -96,7 +96,7 @@ If the change **loosens** the gate alongside source (grows a suppression baselin
 
 A green local `gate` is necessary, not sufficient. CI runs checks your six-verb gate does **not**: the smells-vs-baseline job, secret scan, SAST (semgrep/CodeQL), dependency review. So when the watch finishes, you **must act on its result** - "I pushed, so it's green" is exactly how a red PR gets left behind.
 
-Collect the verdict the way **`foundry:pr-ci-watch`** does: keep working, and check between other steps for the `---PR-CI-WATCH-DONE--- exit <n>` line (0 passed and the PR is now ready, 1 a check failed, 2 nothing to judge). In Herdr, read the pane the script named (`herdr pane read <pane> --source recent-unwrapped --lines 200`) and close it once you are done with it. Outside Herdr, have the session woken when it lands by starting a background Bash task (`run_in_background: true`, generous timeout) that waits on the log:
+Collect the verdict the way **`foundry:pr-ci-watch`** does: keep working, and check between other steps for the `---PR-CI-WATCH-DONE--- exit <n>` line (0 passed, 1 a check failed, 2 nothing to judge). In Herdr, read the pane the script named (`herdr pane read <pane> --source recent-unwrapped --lines 200`) and close it once you are done with it. Outside Herdr, have the session woken when it lands by starting a background Bash task (`run_in_background: true`, generous timeout) that waits on the log:
 
 ```bash
 until grep -q -- '---PR-CI-WATCH-DONE---' .foundry/pr-watch.log; do sleep 15; done; cat .foundry/pr-watch.log
