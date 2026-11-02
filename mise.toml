@@ -50,6 +50,7 @@ run = [
     "bash tests/mcp-deps.test.sh",
     "bash tests/foundry-loop-report.test.sh",
     "bash tests/guard-governance-labels.test.sh",
+    "bash tests/guard-pr-create.test.sh",
     "bash tests/foundry-pr-watch.test.sh",
 ]
 

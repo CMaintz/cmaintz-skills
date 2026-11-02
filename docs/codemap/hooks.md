@@ -10,7 +10,7 @@ The Foundry plugin's in-loop enforcement: Claude Code hooks registered in `plugi
 
 ## Features
 - PreToolUse on Edit|Write|MultiEdit|Bash runs `plugins/foundry/hooks/guard-generated-files.sh`, which exits 2 when a file-path tool targets `snooze.json` or `eslint-suppressions.json` (`plugins/foundry/hooks/guard-generated-files.sh#deny_snooze`, `plugins/foundry/hooks/guard-generated-files.sh#deny_eslint`), or when a Bash command writes one through a redirect, `tee`/`cp`/`mv`/`install`/`rsync`, `sed -i`, `--in-place` or `of=` (`plugins/foundry/hooks/guard-generated-files.sh#writes`). Reads and mere mentions of the file pass.
-- PreToolUse on Bash runs `plugins/foundry/hooks/guard-pr-create.sh`, which denies a `gh pr create` command and points at `plugins/foundry/scripts/foundry-ship-pr` as the sanctioned path.
+- PreToolUse on Bash runs `plugins/foundry/hooks/guard-pr-create.sh`, which denies a `gh pr create` command in a repo that defines `gate` and points at `plugins/foundry/scripts/foundry-ship-pr` as the sanctioned path.
 - PreToolUse on Bash runs `plugins/foundry/hooks/guard-governance-labels.sh`, which denies applying, aliasing or redefining the `ruleset-change` and `suppression` labels via `--add-label`/`--label`/`-l` on `gh pr|issue edit|create`, `gh label create|edit`, or a writing `gh api` call on labels. It evaluates each `;`, `&` or `|` separated segment on its own.
 - PostToolUse on Edit|Write|MultiEdit runs `plugins/foundry/hooks/auto-format.sh`, which formats the single edited file with the nearest `node_modules/.bin` prettier, or eslint `--fix` when prettier is absent (`plugins/foundry/hooks/auto-format.sh#run_tool`).
 - Stop runs `plugins/foundry/hooks/habit-hooks-guard.sh`, which runs `habit-hooks --branch` in the repo root and each immediate subdirectory that has a `.habit-hooks/` directory, and exits 2 with the findings plus a fix-toward legend when any package fails.
@@ -29,12 +29,13 @@ The Foundry plugin's in-loop enforcement: Claude Code hooks registered in `plugi
 - The `.claude/worktrees/` line appended to the repo's `<git-common-dir>/info/exclude` when that directory exists and is not ignored (`plugins/foundry/hooks/habit-hooks-guard.sh`).
 
 ## Happy paths
-### A raw `gh pr create` from the agent is denied
+### A raw `gh pr create` from the agent in a Foundry repo is denied
 1. Entrypoint: Claude Code fires PreToolUse for a Bash call; the `Bash` matcher runs `guard-pr-create.sh` with a 10s timeout (`plugins/foundry/hooks/hooks.json`).
 2. The script reads the JSON payload from stdin, extracts `tool_name` with sed, and exits 0 for anything but `Bash` (`plugins/foundry/hooks/guard-pr-create.sh`).
-3. It extracts only the `command` string (not the description) with an ERE sed, and folds JSON `\n`, `\r`, `\t` escapes to spaces so a later line in a multi-line command is still word-bounded (`plugins/foundry/hooks/guard-pr-create.sh`).
+3. It extracts only the `command` string (not the description) with an ERE sed, folds JSON `\n`, `\r`, `\t` escapes to spaces so a later line in a multi-line command is still word-bounded, and unescapes `\"` and `\\` (`plugins/foundry/hooks/guard-pr-create.sh`).
 4. It matches `gh pr create` as consecutive whole words, allowing a chain or env/flag prefix before and rejecting `createx`; no match exits 0 (`plugins/foundry/hooks/guard-pr-create.sh`).
-5. Side effect: it resolves the absolute path of `plugins/foundry/scripts/foundry-ship-pr`, prints a message to stderr directing the agent to `/foundry:ship` or that script, and exits 2 (`plugins/foundry/hooks/guard-pr-create.sh`).
+5. It classifies the repo: the payload `cwd`, moved by a leading `cd`, `(cd` or `pushd` in the command, must sit in a git work tree whose `mise.toml`/`.mise.toml` has a `[tasks.gate]` header or whose `mise tasks ls` lists `gate` (ship's own test, bounded to 5s, a timeout counting as a gate). A repo without a gate exits 0; no cwd, or a directory that doesn't resolve or sits outside any git work tree, is denied with the reason (`plugins/foundry/hooks/guard-pr-create.sh#cd_target`, `plugins/foundry/hooks/guard-pr-create.sh#mise_lists_gate`).
+6. Side effect: it resolves the absolute path of `plugins/foundry/scripts/foundry-ship-pr`, prints a message to stderr directing the agent to `/foundry:ship` or that script, and exits 2 (`plugins/foundry/hooks/guard-pr-create.sh`).
 
 ### An edited file is auto-formatted
 1. Entrypoint: PostToolUse after Edit, Write or MultiEdit runs `auto-format.sh` with a 30s timeout (`plugins/foundry/hooks/hooks.json`).
