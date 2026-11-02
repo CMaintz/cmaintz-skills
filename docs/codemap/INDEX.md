@@ -34,7 +34,7 @@ skills -> scripts. Detail in [skills.md](skills.md).
 
 ### A raw PR create is redirected to ship
 hooks -> scripts. Detail in [hooks.md](hooks.md).
-1. `plugins/foundry/hooks/guard-pr-create.sh` runs on every Bash PreToolUse (`plugins/foundry/hooks/hooks.json`), denies a `gh pr create` with exit 2 and names `plugins/foundry/scripts/foundry-ship-pr` as the sanctioned path, which runs `gh` as a subprocess the hook never sees.
+1. `plugins/foundry/hooks/guard-pr-create.sh` runs on every Bash PreToolUse (`plugins/foundry/hooks/hooks.json`), denies a `gh pr create` with exit 2 in any repo that defines `gate` (or that it can't place in a git repo) and names `plugins/foundry/scripts/foundry-ship-pr` as the sanctioned path, which runs `gh` as a subprocess the hook never sees.
 
 ### Stop is gated on structural smells
 hooks -> integrations. Detail in [hooks.md](hooks.md).

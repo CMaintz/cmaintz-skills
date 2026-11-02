@@ -53,7 +53,7 @@ inbound surfaces are Claude Code itself, which invokes the hooks with JSON on st
   `gh pr view --json closingIssuesReferences` for review context
   (`plugins/foundry/skills/review/SKILL.md`, `plugins/foundry/skills/verify/SKILL.md`).
   `loop-report` optionally reads `gh run list` (`plugins/foundry/skills/loop-report/SKILL.md`).
-- **Guards** on agent `gh` use: a raw `gh pr create` is denied
+- **Guards** on agent `gh` use: a raw `gh pr create` is denied in a repo that defines `gate`
   (`plugins/foundry/hooks/guard-pr-create.sh`); applying or defining the
   `ruleset-change`/`suppression` labels via `gh pr|issue edit|create`, `gh label
   create|edit` or a writing `gh api` call is denied
