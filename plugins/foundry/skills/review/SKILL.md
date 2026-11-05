@@ -86,8 +86,9 @@ however small the diff.
    - **Correctness** - bugs, wrong edge cases, unhandled errors, race conditions,
      resource leaks, off-by-ones, broken invariants.
    - **Standards** - the repo's own conventions: naming, module boundaries, the
-     structural-smell vocabulary, plus any `build-project-review` criteria. Not
-     generic style a linter already covers. Includes comment quality: comments
+     structural-smell vocabulary, plus any `build-project-review` criteria, on
+     top of the Fowler smell baseline below. Not generic style a linter already
+     covers. Includes comment quality: comments
      say why, not what; history, session context, commented-out code, stale
      comments, and issue-less `TODO`s are findings.
    - **Spec** - does the diff do what the issue asked? Missing requirements, and
@@ -145,6 +146,54 @@ however small the diff.
    When posting findings to a PR, use the same shape: one inline comment per
    finding, a suggestion block for small fixes, and no summary of the PR back to
    its author.
+
+## Fowler smell baseline
+
+The Standards lens always carries the code smells from Fowler's *Refactoring*
+(2nd ed., ch. 3), so a repo that documents no standards still gets a design
+review. Pass the list in full to whichever sub-agent runs the Standards lens
+(every shard's, at large breadth). Three rules bind it:
+
+- **The repo overrides.** A documented repo standard or `build-project-review`
+  criterion wins; where it endorses something below, don't flag it.
+- **The sensor goes first.** Where the repo has a smell sensor
+  (`.habit-hooks/`, run by `mise run smells`), skip the smells it already
+  reports: usually the size and count ones (long function, long parameter
+  list, large class, duplicated code). With no sensor, or one that covers less
+  (some stacks only check duplication), those stay on the list.
+- **Always a judgement call.** Name it as a possibility ("possible Feature
+  Envy"), quote the hunk, and label it `suggestion:` at most, never `blocking:`.
+  The why names a concrete cost, the way a correctness finding names a failure
+  ("the next change to the pricing rule needs edits in `cart.ts` and
+  `invoice.ts`"); that cost is what the refuter tests. Flag only smells the diff
+  introduces or makes worse, not ones it merely sits next to.
+
+Each entry is what it looks like, then the usual fix:
+
+- **Mysterious Name**: a name that doesn't say what the thing does or holds. Rename it; if no honest name comes, the design is murky.
+- **Duplicated Code**: the same logic shape in more than one place. Extract the shared shape.
+- **Long Function**: a function doing several things at different levels. Extract the parts and name them.
+- **Long Parameter List**: callers pass many loosely related arguments. Introduce a parameter object, or pass the whole record.
+- **Global Data**: state reachable and writable from anywhere. Encapsulate it behind a function or module.
+- **Mutable Data**: data changed in place where callers don't expect it. Make it immutable, or confine the writes to one place.
+- **Divergent Change**: one module edited for several unrelated reasons. Split it so each part changes for one reason.
+- **Shotgun Surgery**: one logical change forces small edits across many files. Gather what changes together into one module.
+- **Feature Envy**: a function that uses another object's data more than its own. Move it to the data it envies.
+- **Data Clumps**: the same few fields or parameters always travel together. Bundle them into one type.
+- **Primitive Obsession**: a string or number standing in for a domain concept (money, an id, a range). Give the concept its own small type.
+- **Repeated Switches**: the same switch or if-chain on the same type in several places. Replace the conditional with polymorphism.
+- **Loops**: a hand-written loop where a pipeline (map, filter, reduce) says it more plainly. Replace the loop with the pipeline.
+- **Lazy Element**: a function, class or layer that does too little to earn its name. Inline it.
+- **Speculative Generality**: hooks, parameters or abstractions for needs the spec doesn't have. Delete them until a real need shows.
+- **Temporary Field**: a field set only in some cases and empty the rest of the time. Move it, and the code that uses it, into its own type.
+- **Message Chains**: `a.b().c().d()` navigation the caller shouldn't depend on. Hide the walk behind one method.
+- **Middle Man**: a class or function that mostly delegates onward. Remove it and call the real target.
+- **Insider Trading**: two modules trading private details back and forth. Move the shared part into one of them, or a third.
+- **Large Class**: a class with too many fields or responsibilities. Extract the coherent subsets.
+- **Alternative Classes with Different Interfaces**: interchangeable classes whose method names don't match. Align the interfaces so either can be swapped in.
+- **Data Class**: a class that is only fields and accessors while its behaviour lives elsewhere. Move the behaviour onto it.
+- **Refused Bequest**: a subclass that uses little of what it inherits. Push the unused parts down to the subclasses that need them; if it refuses the parent's interface, not just its implementation, replace inheritance with delegation.
+- **Comments**: a comment explaining what confusing code does. Fix the code so the comment isn't needed (comment rules above still apply).
 
 ## Rules
 
