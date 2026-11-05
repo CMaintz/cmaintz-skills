@@ -3,7 +3,8 @@
 # The stub models GitHub lag: the PR keeps showing its previous head, and that commit's
 # finished passing check, until its head has been asked for LAG times; after that it shows
 # the local HEAD (the commit just pushed), which has CHECKS checks, all in BUCKET (fail
-# unless a case says otherwise).
+# unless a case says otherwise). Like real gh it refuses `pr view`/`pr checks` with --repo
+# and no <number>|<url>|<branch>; the PR of branch feat/x is 37.
 #   Usage: tests/foundry-pr-watch.test.sh
 set -euo pipefail
 
@@ -15,7 +16,7 @@ setup() { # <lag> <checks on the pushed head> [bucket]
   work="$(mktemp -d)"
   export STATE="$work/state" LAG="$1" CHECKS="$2" BUCKET="${3:-fail}"
   mkdir -p "$STATE" "$work/bin"
-  git init -q "$work/repo"
+  git init -q -b feat/x "$work/repo"
   cd "$work/repo"
   git -c user.email=t@example.com -c user.name=test commit -q --allow-empty -m pushed
   export NEW_SHA; NEW_SHA=$(git rev-parse HEAD)
@@ -29,6 +30,13 @@ else
   head=0000000000000000000000000000000000000000; bucket=pass; n=1
 fi
 case "$*" in
+  "pr view --repo"* | "pr checks --repo"*)
+    echo "argument required when using the --repo flag" >&2; exit 1 ;;
+esac
+# The --repo case reuses the plain stubs below once its flag is dropped.
+args=$*; args=${args/ --repo owner\/repo/}
+case "$args" in
+  "pr view --json number -q .number" | "pr view feat/x --json number -q .number") echo 37 ;;
   *headRefOid*) echo $((asked + 1)) > "$STATE/head_asked"; echo "$head" ;;
   "pr checks 37 --watch"*) ;;
   "pr checks 37 --json name -q length") echo "$n" ;;
@@ -47,6 +55,11 @@ EOF
 watch() {
   rc=0
   PATH="$work/bin:$PATH" FOUNDRY_PR_WATCH_POLL_SECONDS=0 "$SCRIPT" 37 "$@" > "$work/out.log" 2>&1 || rc=$?
+}
+
+watch_without_pr() {
+  rc=0
+  PATH="$work/bin:$PATH" FOUNDRY_PR_WATCH_POLL_SECONDS=0 "$SCRIPT" "$@" > "$work/out.log" 2>&1 || rc=$?
 }
 
 # Right after a push the PR still shows the previous commit's finished green run; the
@@ -93,4 +106,17 @@ watch() {
   setup 0 1 pass; watch
   [ ! -e "$STATE/ready" ] || fail "marked the PR ready without --ready-on-green"
   echo "ok: a plain watch never marks the PR ready"
+)
+
+# Without a PR number the watch follows the current branch's PR, with or without --repo.
+(
+  setup 0 1 pass; watch_without_pr
+  [ "$rc" -eq 0 ] || fail "expected a green verdict, got exit $rc: $(cat "$work/out.log")"
+  echo "ok: no PR number watches the current branch's PR"
+)
+
+(
+  setup 0 1 pass; watch_without_pr --repo owner/repo
+  [ "$rc" -eq 0 ] || fail "expected a green verdict, got exit $rc: $(cat "$work/out.log")"
+  echo "ok: --repo without a PR number watches the current branch's PR"
 )

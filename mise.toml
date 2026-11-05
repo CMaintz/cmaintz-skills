@@ -52,6 +52,7 @@ run = [
     "bash tests/guard-governance-labels.test.sh",
     "bash tests/guard-pr-create.test.sh",
     "bash tests/foundry-pr-watch.test.sh",
+    "bash tests/foundry-pr-report.test.sh",
 ]
 
 [tasks.audit]
