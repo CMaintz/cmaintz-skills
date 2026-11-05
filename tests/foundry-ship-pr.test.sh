@@ -127,25 +127,21 @@ watch_verdict() { # <log>
   echo "ok: marks a reused draft PR ready"
 )
 
-# Inside Herdr the watch goes to a sibling pane.
+# Inside Herdr the watch still runs hidden: a pane per PR clutters the user's workspace,
+# so herdr must never be called.
 (
   setup 0 pass
   cat > "$work/bin/herdr" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$STATE/herdr"
-case "$1 $2" in
-  "pane split") echo '{"result":{"pane":{"pane_id":"p9"}}}' ;;
-  "pane run") nohup bash -c "$4" > "$STATE/pane.log" 2>&1 < /dev/null & ;;
-esac
 EOF
   chmod +x "$work/bin/herdr"
   IN_HERDR=1 ship
   [ "$rc" -eq 0 ] || fail "expected exit 0, got $rc: $(cat "$work/out.log")"
-  grep -q '^pane split .*--no-focus' "$STATE/herdr" || fail "did not split a background pane: $(cat "$STATE/herdr")"
-  grep -q '^pane run p9 ' "$STATE/herdr" || fail "did not run the watch in the new pane: $(cat "$STATE/herdr")"
-  watch_verdict "$STATE/pane.log"
-  [ "$verdict" -eq 0 ] || fail "expected a green verdict in the pane, got $verdict: $(cat "$STATE/pane.log")"
-  echo "ok: inside Herdr the watch runs in a sibling pane"
+  watch_verdict "$work/repo/.foundry/pr-watch.log"
+  [ ! -e "$STATE/herdr" ] || fail "called herdr inside Herdr: $(cat "$STATE/herdr")"
+  [ "$verdict" -eq 0 ] || fail "expected a green verdict, got $verdict"
+  echo "ok: inside Herdr the watch runs hidden, not in a pane"
 )
 
 # From a linked worktree the PR is opened for that worktree's branch and checkout, with no
