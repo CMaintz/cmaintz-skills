@@ -8,7 +8,7 @@ shellcheck = "0.11.0"
 gitleaks = "8.30.1"
 # foundry-loop-report is Python; pinned so its smell-trend test and the MCP server tests that
 # run it use the same interpreter here and in CI.
-python = "3.12.15"
+python = "3.12.16"
 
 [tasks.fix]
 description = "Mechanical fixes. None yet"
