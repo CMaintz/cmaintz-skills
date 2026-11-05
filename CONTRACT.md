@@ -14,7 +14,7 @@ Every repo, regardless of language, exposes these six verbs:
 | `mise run lint` | Report style violations and structural smells. | no |
 | `mise run typecheck` | Static type analysis. | no |
 | `mise run test` | Run tests, enforce the coverage floor. | no |
-| `mise run audit` | Dependency vulnerabilities, secrets, SAST. | no |
+| `mise run audit` | Dependency vulnerabilities and secrets. SAST runs in CI, not in the verb. | no |
 | `mise run gate` | `lint` → `typecheck` → `test` → `audit`, in that order. **The oracle.** | no |
 
 A repo with no meaningful work for a verb still defines it as a no-op that exits 0. Absence is not permitted - a caller must never have to ask whether a verb exists.

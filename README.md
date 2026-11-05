@@ -2,7 +2,7 @@
 
 The agent half of [Foundry](https://github.com/CMaintz/foundry): a Claude Code plugin whose skills and hooks drive an agent from an idea to a reviewed pull request, and keep it honest against a deterministic gate on the way.
 
-![The cmaintz-skills loop: /foundry:spec turns an idea into a ticket, /foundry:feature claims it, mise run gate loops until green, /foundry:ship reviews and commits, a draft PR is watched in CI, and /learn routes the lessons. /foundry:codemap gives spec, feature and review a cited map of the repo. Hooks format, check smells and types, and force PRs through ship on every turn.](docs/readme-visual.png)
+![The cmaintz-skills loop: /foundry:spec turns an idea into a ticket, /foundry:feature claims it, mise run gate loops until green, /foundry:ship reviews and commits, the PR is watched in CI, and /learn routes the lessons. /foundry:codemap gives spec, feature and review a cited map of the repo. Hooks format, check smells and types, and force PRs through ship on every turn.](docs/readme-visual.png)
 
 ## The method
 
@@ -49,8 +49,8 @@ Only `plugins/foundry/` is installed; the rest of the repo (CI, docs, `mise.toml
 1. **`codemap`** maps the repo once, and refreshes only the slices that went stale.
 2. **`spec`** turns an idea into a testable ticket and files it as `agent:ready`.
 3. **`feature`** claims it, works it in its own worktree, loops on `mise run gate` until green, then has **`verify`** check it against the ticket.
-4. **`ship`** re-gates, reviews (and verifies, if `feature` didn't) in a fresh context, commits and opens a draft PR.
-5. **CI** is watched without blocking; a red run is fixed and re-pushed, and the PR goes ready once green.
+4. **`ship`** re-gates, reviews (and verifies, if `feature` didn't) in a fresh context, commits and opens a PR, ready for review.
+5. **CI** is watched without blocking; a red run is fixed and re-pushed until it goes green.
 6. **`learn`** (from [ivetts-skills](https://github.com/devill/ivetts-skills)) turns what went wrong into a hook, a rule or a skill, so the next loop starts better.
 
 The hooks run underneath every step.
@@ -59,7 +59,7 @@ The hooks run underneath every step.
 
 - `spec`: turns a rough idea into a testable spec through a short back-and-forth: acceptance criteria plus a Definition of Done kept separate from them. Its procedure drops DoD items that only restate gate or `ship` checks and files only after you explicitly approve the full ticket; nothing checks the filed ticket's shape. With a codemap, its pointers come from the owning slices and must exist in the tree.
 - `feature`: claims a ready ticket, reads the codemap slices it touches, implements it in its own worktree, loops against `mise run gate` (at most 5 cycles, then `agent:blocked`), runs `verify` and fixes what it fails, and hands off to `ship`. Run it on one ticket (`/foundry:feature <ref>`) or as a backlog puller (`/loop /foundry:feature`).
-- `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review and `verify` against the linked issue (with the verify table in the PR body), a conventional commit, then a draft PR through `foundry-ship-pr`, which starts a background CI watch that marks the PR ready once green. Review happens before the PR exists, which also keeps API keys out of CI.
+- `ship`: the one way a change leaves the working tree. Auto-fix, structural smells, a green gate, a fresh-context review and `verify` against the linked issue (with the verify table in the PR body), a conventional commit, then a PR, ready for review, through `foundry-ship-pr`, which starts a background CI watch. Review happens before the PR exists, which also keeps API keys out of CI.
 - `review`: one reviewer instead of three. Correctness, standards and spec lenses in fresh sub-agents, scaled to the size of the change, plus a red-team lens at `high` effort. A fresh refuter then tries to disprove each finding, and only the survivors are reported. The spec lens checks the diff against the acceptance criteria and the DoD, and asks about edits in codemap slices the ticket didn't mention.
 - `verify`: checks a change against its ticket. A read-only fresh-context subagent gets only the ticket, the diff and the means to check (tests, the app, `gh`), and returns pass, fail or can't check with evidence for every acceptance criterion and DoD item, including DoD items outside the diff. Advisory, and with no ticket it stops rather than inventing criteria. Run it yourself (`/foundry:verify [ref]`); `feature` and `ship` call it too.
 - `codemap`: `/foundry:codemap` writes a committed, cited, SHA-stamped map of the repo (`docs/codemap/`) from a deterministic census, with a verifier spot-checking claims against the code. `/foundry:codemap refresh` re-audits only the slices whose cited files changed. It describes, never judges, and hands its output to `ship` as a docs PR. Foundry's `mise run codemap:check` fails when a citation no longer resolves and reports how many commits each slice is behind. It is advisory and not part of `gate`, so nothing fails a build on it; run it yourself.
@@ -91,7 +91,7 @@ All portable `sh` run through `bash`, so they work on Linux, macOS and Windows g
 | `typecheck-stop.sh` | on stop | runs `mise run typecheck` once per turn when source changed, and coaches with the errors. |
 | `format-java-stop.sh` | on stop | runs `./gradlew spotlessApply` once per turn when `.java` files changed and the build uses Spotless. Gradle is too slow to run per edit. |
 | `guard-generated-files.sh` | before an edit or shell command | blocks hand-editing generated baselines (`snooze.json`, `eslint-suppressions.json`) and points at the command that regenerates them. |
-| `guard-pr-create.sh` | before a Bash call | denies a bare `gh pr create`, so no PR skips `ship`. The sanction is the `foundry-ship-pr` script itself, which runs the create as a subprocess the hook never sees. |
+| `guard-pr-create.sh` | before a Bash call | denies a bare `gh pr create` in a repo that defines the `gate` verb, so no PR skips `ship`; repos without one are left alone, and a call it can't place in a git repo stays denied. The sanction is the `foundry-ship-pr` script itself, which runs the create as a subprocess the hook never sees. |
 | `guard-governance-labels.sh` | before a Bash call | denies an agent applying, aliasing or redefining the `ruleset-change` and `suppression` labels (`--add-label`/`--label` on `gh pr`/`gh issue`, `gh api` label writes, `gh label create`/`edit`). They are a human's sign-off; every other label passes. |
 | `jev-toolcall-triage.sh` | on stop | opt-in (`JEV_TOOLCALL_TRIAGE=1`): asks Jev whether the turn looked destructive and prints a warning. Never blocks. |
 | `leash.sh` | prompt, stop, session start | opt-in (`LEASH_ENABLED`): the Foundry adapter for [Leash](https://github.com/CMaintz/leash), which checks each turn's diff against the un-lintable rules in `CLAUDE.md`/`AGENTS.md`. Advisory. |
